@@ -73,6 +73,17 @@ extern poolhandle_t r_temppool;
 #define MAX_DECAL_SURFS	4096
 #define MAX_DRAW_STACK	2		// normal view and menu view
 
+#if XASH_XBOX
+	#undef MAX_TEXTURES
+	#undef MAX_DECAL_SURFS
+	#undef BLOCK_SIZE_MAX
+	#undef MAX_LIGHTMAPS
+	#define MAX_TEXTURES    2048
+	#define MAX_DECAL_SURFS 256
+	#define BLOCK_SIZE_MAX	128
+	#define MAX_LIGHTMAPS 	64
+#endif
+
 #define SHADEDOT_QUANT 	16		// precalculated dot products for quantized angles
 #define SHADE_LAMBERT	1.4953241
 #define DEFAULT_ALPHATEST	0.0f

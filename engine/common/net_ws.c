@@ -104,7 +104,7 @@ typedef struct
 	qboolean		configured;
 	qboolean		allow_ip;
 	qboolean		allow_ip6;
-#if XASH_WIN32
+#if XASH_WIN32 && !XASH_XBOX
 	WSADATA		winsockdata;
 #endif
 } net_state_t;
@@ -1996,7 +1996,7 @@ void NET_Init( void )
 		net.ip6_sockets[i] = INVALID_SOCKET;
 	}
 
-#if XASH_WIN32
+#if XASH_WIN32 && !XASH_XBOX
 	if( WSAStartup( MAKEWORD( 2, 0 ), &net.winsockdata ))
 	{
 		Con_DPrintf( S_ERROR "network initialization failed.\n" );
@@ -2059,7 +2059,7 @@ void NET_Shutdown( void )
 
 	NET_DeleteCriticalSections();
 
-#if XASH_WIN32
+#if XASH_WIN32 && !XASH_XBOX
 	WSACleanup();
 #endif
 	net.initialized = false;

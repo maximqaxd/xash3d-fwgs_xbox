@@ -40,9 +40,13 @@ extern poolhandle_t sndpool;
 #define CLIP16( x ) bound( SHRT_MIN + 8, x, SHRT_MAX - 8 )
 
 //====================================================================
-
+#if XASH_XBOX
+#define MAX_DYNAMIC_CHANNELS	(20 + NUM_AMBIENTS)
+#define MAX_CHANNELS	(128 + MAX_DYNAMIC_CHANNELS)
+#else
 #define MAX_DYNAMIC_CHANNELS (60 + NUM_AMBIENTS)
 #define MAX_CHANNELS         (256 + MAX_DYNAMIC_CHANNELS) // Scourge Of Armagon has too many static sounds on hip2m4.bsp
+#endif
 #define MAX_RAW_CHANNELS     48
 #define MAX_RAW_SAMPLES      16384
 #define SND_CLIP_DISTANCE    1000.0f

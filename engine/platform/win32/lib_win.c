@@ -19,12 +19,32 @@ GNU General Public License for more details.
 #include "lib_win.h"
 #include "utflib.h"
 
+#if XASH_XBOX
+#include <stddef.h>
+#include <string.h>
+#include <fileapi.h>
+#include <handleapi.h>
+#include <hal/debug.h>
+#include <winbase.h>
+/* nxdk winnt.h: 32-bit PE only, no PIMAGE_NT_HEADERS / IMAGE_FIRST_SECTION */
+#ifndef IMAGE_FIRST_SECTION
+#define IMAGE_FIRST_SECTION(NtHeader) ((PIMAGE_SECTION_HEADER)((uintptr_t)(NtHeader) + offsetof(IMAGE_NT_HEADERS32, OptionalHeader) + ((PIMAGE_NT_HEADERS32)(NtHeader))->FileHeader.SizeOfOptionalHeader))
+#endif
+#define PIMAGE_NT_HEADERS PIMAGE_NT_HEADERS32
+#define IMAGE_OPTIONAL_HEADER IMAGE_OPTIONAL_HEADER32
+#ifndef IsBadReadPtr
+#define IsBadReadPtr(ptr, size) ((BOOL)0)
+#endif
+#endif /* XASH_XBOX */
+
+#if !XASH_XBOX
 static const wchar_t *FS_PathToWideChar( const char *path )
 {
 	static wchar_t pathBuffer[MAX_PATH];
 	MultiByteToWideChar( CP_UTF8, 0, path, -1, pathBuffer, MAX_PATH );
 	return pathBuffer;
 }
+#endif
 
 
 static DWORD GetOffsetByRVA( DWORD rva, PIMAGE_NT_HEADERS nt_header )
@@ -305,18 +325,28 @@ table_error:
 
 static const char *GetLastErrorAsString( void )
 {
-	const DWORD fm_flags = FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS | FORMAT_MESSAGE_MAX_WIDTH_MASK;
 	DWORD errorcode;
-	wchar_t wide_errormessage[256];
 	static string errormessage;
 
 	errorcode = GetLastError();
 	if ( !errorcode )
 		return "";
 
+#if XASH_XBOX
+	/* nxdk: no FormatMessageW. LoadLibraryExA maps any read/open failure to ERROR_MOD_NOT_FOUND. */
+	if( errorcode == ERROR_MOD_NOT_FOUND )
+		Q_snprintf( errormessage, sizeof( errormessage ), "Win32 error %lu (nxdk: open/read/size failed; not only missing path)", (unsigned long)errorcode );
+	else
+		Q_snprintf( errormessage, sizeof( errormessage ), "Win32 error %lu", (unsigned long)errorcode );
+#else
+	{
+	const DWORD fm_flags = FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS | FORMAT_MESSAGE_MAX_WIDTH_MASK;
+	wchar_t wide_errormessage[256];
+
 	FormatMessageW( fm_flags, NULL, errorcode, 0, wide_errormessage, ARRAYSIZE( wide_errormessage ), NULL );
 	Q_UTF16ToUTF8( errormessage, sizeof( errormessage ), wide_errormessage, ARRAYSIZE( wide_errormessage ));
-
+	}
+#endif
 	return errormessage;
 }
 
@@ -362,6 +392,10 @@ static PIMAGE_IMPORT_DESCRIPTOR GetImportDescriptor( const char *name, byte *dat
 
 static void ListMissingModules( dll_user_t *hInst )
 {
+#if XASH_XBOX
+	(void)hInst;
+	return;
+#else
 	PIMAGE_NT_HEADERS peHeader;
 	PIMAGE_IMPORT_DESCRIPTOR importDesc;
 	byte *data;
@@ -396,6 +430,7 @@ static void ListMissingModules( dll_user_t *hInst )
 
 	Mem_Free( data );
 	return;
+#endif /* !XASH_XBOX */
 }
 
 qboolean COM_CheckLibraryDirectDependency( const char *name, const char *depname, qboolean directpath )
@@ -471,7 +506,7 @@ void *COM_LoadLibrary( const char *dllname, int build_ordinals_table, qboolean d
 		return NULL;
 	}
 
-#if XASH_X86
+#if XASH_X86 && !XASH_XBOX
 	if( hInst->custom_loader )
 	{
 		hInst->hInstance = MemoryLoadLibrary( hInst->fullPath );
@@ -479,7 +514,11 @@ void *COM_LoadLibrary( const char *dllname, int build_ordinals_table, qboolean d
 	else
 #endif
 	{
+#if XASH_XBOX
+		hInst->hInstance = LoadLibraryA( hInst->fullPath );
+#else
 		hInst->hInstance = LoadLibraryW( FS_PathToWideChar( hInst->fullPath ));
+#endif
 	}
 
 	if( !hInst->hInstance )
@@ -515,7 +554,7 @@ void *COM_GetProcAddress( void *hInstance, const char *name )
 	if( !hInst || !hInst->hInstance )
 		return NULL;
 
-#if XASH_X86
+#if XASH_X86 && !XASH_XBOX
 	if( hInst->custom_loader )
 		return (void *)MemoryGetProcAddress( hInst->hInstance, name );
 #endif
@@ -537,7 +576,7 @@ void COM_FreeLibrary( void *hInstance )
 	}
 	else Con_Reportf( "%s: Unloading %s\n", __func__, hInst->dllName );
 
-#if XASH_X86
+#if XASH_X86 && !XASH_XBOX
 	if( hInst->custom_loader )
 	{
 		MemoryFreeLibrary( hInst->hInstance );

@@ -109,15 +109,17 @@ void SDLash_Init( void )
 	else
 		SDL_LogSetAllPriority( SDL_LOG_PRIORITY_ERROR );
 
-#if XASH_WIN32
+#if XASH_WIN32 && !XASH_XBOX
 	SDL_SetHint( SDL_HINT_WINDOWS_DPI_AWARENESS, "permonitor" );
 	// TODO: disabled for now
 	// try to test it better when we'll come back to highdpi support issue
 	// SDL_SetHint( SDL_HINT_WINDOWS_DPI_SCALING, "1" );
-#endif // XASH_WIN32
+#endif // XASH_WIN32 && !XASH_XBOX
 
+#if !XASH_XBOX
 	SDL_SetHint( SDL_HINT_ANDROID_BLOCK_ON_PAUSE, "0" );
 	SDL_SetHint( SDL_HINT_ANDROID_BLOCK_ON_PAUSE_PAUSEAUDIO, "0" );
+#endif // !XASH_XBOX
 
 	if( SDL_Init( SDL_INIT_TIMER | SDL_INIT_VIDEO | SDL_INIT_EVENTS ) )
 	{

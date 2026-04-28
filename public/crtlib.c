@@ -670,6 +670,17 @@ void COM_PathSlashFix( char *path )
 {
 	size_t len = Q_strlen( path );
 
+#if XASH_XBOX
+	if( path[len - 1] == '/' )
+	{
+		path[len - 1] = '\\';
+	}
+	else if( path[len - 1] != '\\' )
+	{
+		path[len]     = '\\';
+		path[len + 1] = '\0';
+	}
+#else
 	if( path[len - 1] == '\\' )
 	{
 		path[len - 1] = '/';
@@ -679,6 +690,7 @@ void COM_PathSlashFix( char *path )
 		path[len] = '/';
 		path[len + 1] = '\0';
 	}
+#endif
 }
 
 /*

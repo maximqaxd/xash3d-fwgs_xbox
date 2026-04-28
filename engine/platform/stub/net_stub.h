@@ -14,18 +14,109 @@ GNU General Public License for more details.
 */
 #ifndef NET_STUB_H
 #define NET_STUB_H
-
+#if XASH_XBOX
+#include <stddef.h>
+#endif
 #define INVALID_SOCKET (-1)
 #define SOCKET_ERROR (-1)
 #define SOCKET int
 typedef int WSAsize_t;
-struct in_addr {unsigned long s_addr;};
-struct sockaddr_in{ short sin_family;unsigned short sin_port;struct in_addr sin_addr;};
-struct sockaddr {short sa_family;int stub[32];};
-struct hostent {int h_addr_list[1];};
-struct timeval {long tv_sec;long tv_usec;};
+#if XASH_XBOX
+typedef int socklen_t;
+#endif
 
-#define AF_INET 0
+struct in_addr { unsigned long s_addr; };
+struct sockaddr_in { short sin_family; unsigned short sin_port; struct in_addr sin_addr; };
+struct sockaddr { short sa_family; int stub[32]; };
+struct hostent { int h_addr_list[1]; };
+struct timeval { long tv_sec; long tv_usec; };
+
+#if XASH_XBOX
+struct in6_addr { unsigned char s6_addr[16]; };
+struct sockaddr_in6 {
+	unsigned short sin6_family;
+	unsigned short sin6_port;
+	unsigned long sin6_flowinfo;
+	struct in6_addr sin6_addr;
+	unsigned long sin6_scope_id;
+};
+struct sockaddr_storage {
+	unsigned short ss_family;
+	unsigned char __ss_pad[128 - sizeof( unsigned short )];
+};
+
+#ifndef AF_UNSPEC
+#define AF_UNSPEC 0
+#endif
+#ifndef AF_INET
+#define AF_INET 2
+#endif
+#ifndef AF_INET6
+#define AF_INET6 23
+#endif
+#ifndef PF_UNSPEC
+#define PF_UNSPEC 0
+#endif
+#ifndef PF_INET
+#define PF_INET 2
+#endif
+#ifndef PF_INET6
+#define PF_INET6 23
+#endif
+#ifndef SOCK_DGRAM
+#define SOCK_DGRAM 2
+#endif
+#ifndef IPPROTO_UDP
+#define IPPROTO_UDP 17
+#endif
+#ifndef IPPROTO_IP
+#define IPPROTO_IP 0
+#endif
+#ifndef IPPROTO_IPV6
+#define IPPROTO_IPV6 41
+#endif
+#ifndef IPV6_V6ONLY
+#define IPV6_V6ONLY 27
+#endif
+#ifndef IPV6_MULTICAST_LOOP
+#define IPV6_MULTICAST_LOOP 11
+#endif
+#ifndef IP_TOS
+#define IP_TOS 3
+#endif
+#ifndef IP_MULTICAST_LOOP
+#define IP_MULTICAST_LOOP 11
+#endif
+
+static const struct in6_addr in6addr_any = { { 0 } };
+
+struct addrinfo {
+	int ai_flags;
+	int ai_family;
+	int ai_socktype;
+	int ai_protocol;
+	socklen_t ai_addrlen;
+	struct sockaddr *ai_addr;
+	char *ai_canonname;
+	struct addrinfo *ai_next;
+};
+
+typedef struct _WSADATA_stub {
+	char _unused[16];
+} WSADATA;
+
+#ifndef MAKEWORD
+#define MAKEWORD( lo, hi ) ((unsigned short)(((unsigned char)( lo )) | ((unsigned short)((unsigned char)( hi ))) << 8))
+#endif
+
+#define FIONBIO 0x8004667E
+
+#define WSAStartup( x, y ) (0)
+#define WSACleanup() ((void)0)
+
+#define getaddrinfo( hostname, servname, hints, res ) (1)
+#define freeaddrinfo( x ) ((void)0)
+#endif
 #define INADDR_BROADCAST 0
 #define INADDR_ANY 0
 //! Network to host conversion for a word.

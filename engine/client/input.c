@@ -443,7 +443,9 @@ void IN_Init( void )
 
 	if( !Host_IsDedicated() )
 	{
+#if !XASH_XBOX
 		IN_StartupMouse( );
+#endif
 
 		Joy_Init(); // common joystick support init
 

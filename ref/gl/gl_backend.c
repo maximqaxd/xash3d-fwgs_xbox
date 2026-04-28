@@ -164,6 +164,7 @@ void GL_SelectTexture( int tmu )
 
 	glState.activeTMU = tmu;
 
+#if !XASH_XBOX
 	if( pglActiveTextureARB )
 	{
 		pglActiveTextureARB( tmu + GL_TEXTURE0_ARB );
@@ -171,6 +172,7 @@ void GL_SelectTexture( int tmu )
 		if( tmu < glConfig.max_texture_coords )
 			pglClientActiveTextureARB( tmu + GL_TEXTURE0_ARB );
 	}
+#endif
 }
 
 /*
@@ -705,13 +707,17 @@ void SCR_TimeRefresh_f( void )
 	// run without page flipping like GoldSrc
 	if( gEngfuncs.Cmd_Argc() == 1 )
 	{
+#if !XASH_XBOX
 		pglDrawBuffer( GL_FRONT );
+#endif
 		for( i = 0; i < 128; i++ )
 		{
 			gpGlobals->viewangles[1] = i / 128.0f * 360.0f;
 			R_RenderScene();
 		}
+#if !XASH_XBOX
 		pglFinish();
+#endif
 		R_EndFrame();
 	}
 	else

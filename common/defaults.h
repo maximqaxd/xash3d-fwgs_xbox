@@ -49,6 +49,9 @@ SETUP BACKENDS DEFINITIONS
 		#define XASH_REDUCE_FD 1
 		#define XASH_NO_TOUCH  1
 		#define XASH_NO_ZIP    1
+	#elif XASH_XBOX
+		#undef XASH_VIDEO
+		#define XASH_VIDEO		VIDEO_XBOX
 	#endif
 #endif // !XASH_DEDICATED
 
@@ -58,12 +61,14 @@ SETUP BACKENDS DEFINITIONS
 #ifndef XASH_MESSAGEBOX
 	#if XASH_SDL >= 2 && !XASH_NSWITCH // SDL2 messageboxes are not available on NSW
 		#define XASH_MESSAGEBOX MSGBOX_SDL
-	#elif XASH_WIN32
+	#elif XASH_WIN32 && !XASH_XBOX
 		#define XASH_MESSAGEBOX MSGBOX_WIN32
 	#elif XASH_NSWITCH
 		#define XASH_MESSAGEBOX MSGBOX_NSWITCH
 	#elif XASH_PSP
 		#define XASH_MESSAGEBOX MSGBOX_PSP
+	#elif XASH_XBOX
+		#define XASH_MESSAGEBOX MSGBOX_XBOX
 	#else // !XASH_WIN32
 		#define XASH_MESSAGEBOX MSGBOX_STDERR
 	#endif // !XASH_WIN32
@@ -149,6 +154,13 @@ Default build-depended cvar and constant values
 	#define DEFAULT_MODE_WIDTH   960
 	#define DEFAULT_MODE_HEIGHT  544
 	#define DEFAULT_ALLOWCONSOLE 1
+#elif XASH_XBOX
+	#define DEFAULT_MODE_WIDTH   640
+	#define DEFAULT_MODE_HEIGHT  480
+	#define DEFAULT_FULLSCREEN   "2"
+	#define DEFAULT_M_IGNORE     "1"
+	#define DEFAULT_ALLOWCONSOLE  1
+	#define XASH_NO_NETWORK       1  
 #elif XASH_ANDROID
 	#define DEFAULT_TOUCH_ENABLE "1"
 #elif XASH_MOBILE_PLATFORM

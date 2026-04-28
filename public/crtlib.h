@@ -361,7 +361,7 @@ static inline int Q_splitstr( char *str, int delim, void *userdata,
 ============
 COM_FixSlashes
 
-Changes all '\' characters into '/' characters and removes duplicate slashes, in place.
+Changes path separators to the platform-native slash and removes duplicate slashes, in place.
 ============
 */
 static inline void COM_FixSlashes( char *pname )
@@ -369,6 +369,17 @@ static inline void COM_FixSlashes( char *pname )
 	char *s = pname;
 	int i, j;
 
+#if XASH_XBOX
+	while(( s = Q_strchr( s, '/' )))
+		*s = '\\';
+
+	for( i = 0, j = 0; pname[i]; i++ )
+	{
+		if( pname[i] == '\\' && pname[i+1] == '\\' )
+			continue;
+		pname[j++] = pname[i];
+	}
+#else
 	while(( s = Q_strchr( s, '\\' )))
 		*s = '/';
 
@@ -378,6 +389,7 @@ static inline void COM_FixSlashes( char *pname )
 			continue;
 		pname[j++] = pname[i];
 	}
+#endif
 	pname[j] = 0;
 }
 

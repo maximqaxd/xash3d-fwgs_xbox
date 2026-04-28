@@ -61,7 +61,9 @@ GNU General Public License for more details.
 #if !XASH_WIN32
 	typedef void *HINSTANCE;
 	typedef struct tagPOINT	{ int x, y; } POINT; // one nasty function in cdll_int.h needs it
-#endif // !XASH_WIN32
+#elif XASH_XBOX
+	typedef struct tagPOINT	{ int x, y; } POINT; 
+#endif
 
 #ifndef XASH_LOW_MEMORY
 	#define XASH_LOW_MEMORY 0

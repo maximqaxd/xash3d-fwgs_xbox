@@ -312,6 +312,18 @@ qboolean FS_FixFileCase( dir_t *dir, const char *path, char *dst, const size_t l
 		char entryname[MAX_SYSPATH];
 		int ret;
 
+#if XASH_XBOX
+		// On Xbox paths use backslash — skip any backslash components before each token
+		while( *prev == '\\' ) prev++;
+
+		if( next == prev || *next == '\0' )
+		{
+			const char *bs = Q_strchrnul( prev, '\\' );
+			if( bs < next || *next == '\0' )
+				next = bs;
+		}
+#endif
+
 		if( dir->numentries == DIRENTRY_NOT_SCANNED )
 		{
 			// read directory first time
@@ -364,10 +376,18 @@ qboolean FS_FixFileCase( dir_t *dir, const char *path, char *dst, const size_t l
 		i = temp;
 
 		// end of string, found file, return
+#if XASH_XBOX
+		if( next[0] == '\0' || (( next[0] == '/' || next[0] == '\\' ) && next[1] == '\0' ))
+#else
 		if( next[0] == '\0' || ( next[0] == '/' && next[1] == '\0' ))
+#endif
 			break;
 
+#if XASH_XBOX
+		if( !FS_AppendToPath( dst, &i, len, "\\", path, "path separator" ))
+#else
 		if( !FS_AppendToPath( dst, &i, len, "/", path, "path separator" ))
+#endif
 			return false;
 	}
 

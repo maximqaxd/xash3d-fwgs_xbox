@@ -19,6 +19,12 @@ GNU General Public License for more details.
 
 #define TURBSCALE		( 256.0f / ( M_PI2 ))
 
+#if XASH_XBOX
+#define LM_BPP 3
+#else
+#define LM_BPP 4
+#endif
+
 // speed up sin calculations
 static const float r_turbsin[] =
 {
@@ -32,7 +38,7 @@ typedef struct
 	int		current_lightmap_texture;
 	msurface_t	*dynamic_surfaces;
 	msurface_t	*lightmap_surfaces[MAX_LIGHTMAPS];
-	byte		lightmap_buffer[BLOCK_SIZE_MAX*BLOCK_SIZE_MAX*4];
+	byte		lightmap_buffer[BLOCK_SIZE_MAX*BLOCK_SIZE_MAX*LM_BPP];
 } gllightmapstate_t;
 
 static vec2_t		world_orthocenter;
@@ -715,7 +721,11 @@ static int LM_AllocBlock( int w, int h, int *x, int *y )
 
 static void LM_UploadDynamicBlock( void )
 {
+#if XASH_XBOX
+	pglTexSubImage2D( GL_TEXTURE_2D, 0, 0, 0, BLOCK_SIZE, gl_lms.max_height, GL_RGB, GL_UNSIGNED_BYTE, gl_lms.lightmap_buffer );
+#else
 	pglTexSubImage2D( GL_TEXTURE_2D, 0, 0, 0, BLOCK_SIZE, gl_lms.max_height, GL_RGBA, GL_UNSIGNED_BYTE, gl_lms.lightmap_buffer );
+#endif
 }
 
 static void LM_UploadBlock( qboolean dynamic )
@@ -737,8 +747,12 @@ static void LM_UploadBlock( qboolean dynamic )
 
 		r_lightmap.width = BLOCK_SIZE;
 		r_lightmap.height = BLOCK_SIZE;
+#if XASH_XBOX
+		r_lightmap.type = PF_RGB_24;
+#else
 		r_lightmap.type = PF_RGBA_32;
-		r_lightmap.size = r_lightmap.width * r_lightmap.height * 4;
+#endif
+		r_lightmap.size = r_lightmap.width * r_lightmap.height * LM_BPP;
 		r_lightmap.flags = IMAGE_HAS_COLOR;
 		r_lightmap.buffer = gl_lms.lightmap_buffer;
 		tr.lightmapTextures[i] = GL_LoadTextureInternal( lmName, &r_lightmap, TF_NOMIPMAP|TF_ATLAS_PAGE );
@@ -804,9 +818,21 @@ static void R_BuildLightMap( const msurface_t *surf, byte *dest, int stride, qbo
 		for( s = 0; s < smax; s++ )
 		{
 			const uint *bl = &r_blocklights[(s + (t * smax)) * 3];
-			byte *dst = &dest[(t * stride) + (s * 4)];
+			byte *dst = &dest[(t * stride) + (s * LM_BPP)];
 			int i;
 
+#if XASH_XBOX
+			// pbgl swaps R<->B for GL_RGB, write BGR so it comes out correct
+			for( i = 0; i < 3; i++ )
+			{
+				int c = bl[i] * lightscale >> 14;
+
+				if( c > 1023 )
+					c = 1023;
+
+				dst[2 - i] = LightToTexGamma( c ) >> 2;
+			}
+#else
 			for( i = 0; i < 3; i++ )
 			{
 				int t = bl[i] * lightscale >> 14;
@@ -817,6 +843,7 @@ static void R_BuildLightMap( const msurface_t *surf, byte *dest, int stride, qbo
 				dst[i] = LightToTexGamma( t ) >> 2;
 			}
 			dst[3] = 255;
+#endif
 		}
 	}
 }
@@ -1161,9 +1188,9 @@ static void R_BlendLightmaps( void )
 			if( LM_AllocBlock( smax, tmax, &surf->info->dlight_s, &surf->info->dlight_t ))
 			{
 				base = gl_lms.lightmap_buffer;
-				base += ( surf->info->dlight_t * BLOCK_SIZE + surf->info->dlight_s ) * 4;
+				base += ( surf->info->dlight_t * BLOCK_SIZE + surf->info->dlight_s ) * LM_BPP;
 
-				R_BuildLightMap( surf, base, BLOCK_SIZE * 4, true );
+				R_BuildLightMap( surf, base, BLOCK_SIZE * LM_BPP, true );
 			}
 			else
 			{
@@ -1193,9 +1220,9 @@ static void R_BlendLightmaps( void )
 					gEngfuncs.Host_Error( "AllocBlock: full\n" );
 
 				base = gl_lms.lightmap_buffer;
-				base += ( surf->info->dlight_t * BLOCK_SIZE + surf->info->dlight_s ) * 4;
+				base += ( surf->info->dlight_t * BLOCK_SIZE + surf->info->dlight_s ) * LM_BPP;
 
-				R_BuildLightMap( surf, base, BLOCK_SIZE * 4, true );
+				R_BuildLightMap( surf, base, BLOCK_SIZE * LM_BPP, true );
 			}
 		}
 
@@ -1407,14 +1434,14 @@ static qboolean R_CheckLightMap( msurface_t *fa )
 		if( !( style >= 32 || style == 0 || style == 20 ))
 			return true;
 
-		byte temp[132*132*4];
+		byte temp[132*132*LM_BPP];
 		mextrasurf_t *info = fa->info;
 		int sample_size = gEngfuncs.Mod_SampleSizeForFace( fa );
 		int smax = ( info->lightextents[0] / sample_size ) + 1;
 		int tmax = ( info->lightextents[1] / sample_size ) + 1;
 
 		if( smax < 132 && tmax < 132 )
-			R_BuildLightMap( fa, temp, smax * 4, true );
+			R_BuildLightMap( fa, temp, smax * LM_BPP, true );
 		else
 		{
 			smax = Q_min( smax, 132 );
@@ -1431,7 +1458,11 @@ static qboolean R_CheckLightMap( msurface_t *fa )
 #else
 		GL_Bind( XASH_TEXTURE0, tr.lightmapTextures[fa->lightmaptexturenum] );
 #endif
+#if XASH_XBOX
+		pglTexSubImage2D( GL_TEXTURE_2D, 0, fa->light_s, fa->light_t, smax, tmax, GL_RGB, GL_UNSIGNED_BYTE, temp );
+#else
 		pglTexSubImage2D( GL_TEXTURE_2D, 0, fa->light_s, fa->light_t, smax, tmax, GL_RGBA, GL_UNSIGNED_BYTE, temp );
+#endif
 
 #if XASH_WES
 		GL_SelectTexture( XASH_TEXTURE0 );
@@ -2124,6 +2155,7 @@ Allocate memory for arrays, fill it with vertex attribs and upload to GPU
 */
 void R_GenerateVBO( void )
 {
+#if !XASH_XBOX
 	model_t *world = WORLDMODEL;
 	msurface_t *surfaces;
 	int numsurfaces;
@@ -2337,6 +2369,7 @@ void R_GenerateVBO( void )
 	t3 = gEngfuncs.pfnTime();
 
 	gEngfuncs.Con_Reportf( S_NOTE "%s: uploaded VBOs in %.3g seconds, %.3g seconds total\n", __func__, t3 - t2, t3 - t1 );
+#endif
 }
 
 /*
@@ -2348,6 +2381,7 @@ generate decal mesh and put it to array
 */
 void R_AddDecalVBO( decal_t *pdecal, msurface_t *surf )
 {
+#if !XASH_XBOX
 	int numVerts, i;
 	float *v;
 	int decalindex = pdecal - &gDecalPool[0];
@@ -2372,6 +2406,7 @@ void R_AddDecalVBO( decal_t *pdecal, msurface_t *surf )
 	pglBindBufferARB( GL_ARRAY_BUFFER_ARB, 0 );
 
 	vbos.decaldata->decals[decalindex].numVerts = numVerts;
+#endif
 }
 
 /*
@@ -2383,6 +2418,7 @@ free all vbo data
 */
 void R_ClearVBO( void )
 {
+#if !XASH_XBOX
 	vboarray_t *vbo;
 
 	for( vbo = vbos.arraylist; vbo; vbo = vbo->next )
@@ -2402,6 +2438,7 @@ void R_ClearVBO( void )
 
 	vbos.decaldata = NULL;
 	Mem_FreePool( &vbos.mempool );
+#endif
 }
 
 
@@ -2963,9 +3000,9 @@ static void R_DrawVBODlights( vboarray_t *vbo, vbotexture_t *vbotex, texture_t *
 			if( LM_AllocBlock( smax, tmax, &info->dlight_s, &info->dlight_t ))
 			{
 				base = gl_lms.lightmap_buffer;
-				base += ( info->dlight_t * BLOCK_SIZE + info->dlight_s ) * 4;
+				base += ( info->dlight_t * BLOCK_SIZE + info->dlight_s ) * LM_BPP;
 
-				R_BuildLightMap( surf, base, BLOCK_SIZE * 4, true );
+				R_BuildLightMap( surf, base, BLOCK_SIZE * LM_BPP, true );
 			}
 			else
 			{
@@ -3003,9 +3040,9 @@ static void R_DrawVBODlights( vboarray_t *vbo, vbotexture_t *vbotex, texture_t *
 					gEngfuncs.Host_Error( "%s: full\n", __func__ );
 
 				base = gl_lms.lightmap_buffer;
-				base += ( info->dlight_t * BLOCK_SIZE + info->dlight_s ) * 4;
+				base += ( info->dlight_t * BLOCK_SIZE + info->dlight_s ) * LM_BPP;
 
-				R_BuildLightMap( surf, base, BLOCK_SIZE * 4, true );
+				R_BuildLightMap( surf, base, BLOCK_SIZE * LM_BPP, true );
 			}
 
 			// build index and texcoords arrays
@@ -3284,6 +3321,7 @@ Draw generated index arrays
 */
 void R_DrawVBO( qboolean drawlightmap, qboolean drawtextures )
 {
+#if !XASH_XBOX
 	int numtextures = WORLDMODEL->numtextures;
 	int numlightmaps =  gl_lms.current_lightmap_texture;
 	int k;
@@ -3396,6 +3434,7 @@ void R_DrawVBO( qboolean drawlightmap, qboolean drawtextures )
 	vbos.maxlightmap = 0;
 	vbos.mintexture = INT_MAX;
 	vbos.maxtexture = 0;
+#endif
 }
 
 qboolean R_AddSurfToVBO( msurface_t *surf, qboolean buildlightmap )
@@ -3870,10 +3909,10 @@ static void GL_CreateSurfaceLightmap( msurface_t *surf, model_t *loadmodel )
 	surf->lightmaptexturenum = gl_lms.current_lightmap_texture;
 
 	base = gl_lms.lightmap_buffer;
-	base += ( surf->light_t * BLOCK_SIZE + surf->light_s ) * 4;
+	base += ( surf->light_t * BLOCK_SIZE + surf->light_s ) * LM_BPP;
 
 	R_SetCacheState( surf );
-	R_BuildLightMap( surf, base, BLOCK_SIZE * 4, false );
+	R_BuildLightMap( surf, base, BLOCK_SIZE * LM_BPP, false );
 }
 
 /*

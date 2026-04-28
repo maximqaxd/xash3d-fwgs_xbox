@@ -76,6 +76,46 @@ extern "C" {
 #define true 1
 #endif
 
+#if defined(__XASH_XBOX__)
+#include <string.h>
+
+static int WAI_PREFIX(getModulePath_)(HMODULE module, char* out, int capacity, int* dirname_length)
+{
+  char buf[MAX_PATH];
+  DWORD n;
+  int len;
+  int i;
+
+  if (!out || capacity < 1)
+    return -1;
+
+  n = GetModuleFileNameA(module, buf, MAX_PATH);
+  if (n == 0)
+    return -1;
+
+  len = (int)strlen(buf);
+  if (len + 1 > capacity)
+    return -1;
+
+  memcpy(out, buf, (size_t)len + 1);
+
+  if (dirname_length)
+  {
+    *dirname_length = len;
+    for (i = len - 1; i >= 0; i--)
+    {
+      if (out[i] == '\\' || out[i] == '/')
+      {
+        *dirname_length = i;
+        break;
+      }
+    }
+  }
+  return len;
+}
+
+#else
+
 static int WAI_PREFIX(getModulePath_)(HMODULE module, char* out, int capacity, int* dirname_length)
 {
   wchar_t buffer1[MAX_PATH];
@@ -148,6 +188,8 @@ static int WAI_PREFIX(getModulePath_)(HMODULE module, char* out, int capacity, i
   return ok ? length : -1;
 }
 
+#endif
+
 WAI_NOINLINE WAI_FUNCSPEC
 int WAI_PREFIX(getExecutablePath)(char* out, int capacity, int* dirname_length)
 {
@@ -157,6 +199,10 @@ int WAI_PREFIX(getExecutablePath)(char* out, int capacity, int* dirname_length)
 WAI_NOINLINE WAI_FUNCSPEC
 int WAI_PREFIX(getModulePath)(char* out, int capacity, int* dirname_length)
 {
+#if defined(__XASH_XBOX__)
+  (void)WAI_RETURN_ADDRESS();
+  return WAI_PREFIX(getModulePath_)(NULL, out, capacity, dirname_length);
+#else
   HMODULE module;
   int length = -1;
 
@@ -173,6 +219,7 @@ int WAI_PREFIX(getModulePath)(char* out, int capacity, int* dirname_length)
   }
 
   return length;
+#endif
 }
 
 #elif defined(__linux__) || defined(__CYGWIN__) || defined(__sun) || defined(__serenity__) || defined(__gnu_hurd__) || defined(WAI_USE_PROC_SELF_EXE)

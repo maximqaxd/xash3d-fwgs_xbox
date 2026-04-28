@@ -373,8 +373,9 @@ int Platform_JoyInit( void )
 	int count, numJoysticks, i;
 
 	SDL_SetHint( SDL_HINT_JOYSTICK_HIDAPI_PS4_RUMBLE, "1" );
+#if !XASH_XBOX
 	SDL_SetHint( SDL_HINT_JOYSTICK_HIDAPI_PS5_RUMBLE, "1" );
-
+#endif // !XASH_XBOX
 	Con_Reportf( "Joystick: SDL GameController API\n" );
 	if( SDL_WasInit( SDL_INIT_GAMECONTROLLER ) != SDL_INIT_GAMECONTROLLER &&
 		SDL_InitSubSystem( SDL_INIT_GAMECONTROLLER ))

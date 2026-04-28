@@ -34,7 +34,7 @@
 // This is conveniently done for them in extdll.h
 //
 
-#ifdef _WIN32
+#if defined(_WIN32) && !XASH_XBOX
 #define DLLEXPORT __stdcall
 #else
 #define DLLEXPORT /* */

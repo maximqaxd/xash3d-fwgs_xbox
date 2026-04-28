@@ -48,7 +48,7 @@ const char *IOS_GetExecDir( void );
 void IOS_LaunchDialog( void );
 #endif // TARGET_OS_IOS
 
-#if XASH_WIN32 || XASH_LINUX
+#if XASH_WIN32 && !XASH_XBOX || XASH_LINUX
 #define XASH_PLATFORM_HAVE_STATUS 1
 #else
 #undef XASH_PLATFORM_HAVE_STATUS
@@ -133,7 +133,7 @@ static inline void Platform_Init( qboolean con_showalways )
 	PSVita_Init( );
 #elif XASH_DOS
 	DOS_Init( );
-#elif XASH_WIN32
+#elif XASH_WIN32 && !XASH_XBOX
 	Win32_Init( con_showalways );
 #elif XASH_LINUX
 	Linux_Init( );
@@ -148,7 +148,7 @@ static inline void Platform_Shutdown( void )
 	PSVita_Shutdown( );
 #elif XASH_DOS
 	DOS_Shutdown( );
-#elif XASH_WIN32
+#elif XASH_WIN32 && !XASH_XBOX
 	Win32_Shutdown( );
 #elif XASH_LINUX
 	Linux_Shutdown( );
@@ -161,7 +161,7 @@ static inline void Platform_Shutdown( void )
 
 static inline qboolean Sys_DebuggerPresent( void )
 {
-#if XASH_LINUX || XASH_WIN32
+#if XASH_LINUX || XASH_WIN32 && !XASH_XBOX
 	return Platform_DebuggerPresent();
 #else
 	return false;
@@ -190,14 +190,14 @@ static inline qboolean Platform_NanoSleep( int nsec )
 	if( ret < 0 )
 		return errno == EINTR; // ignore EINTR error, it just means sleep was interrupted
 	return true;
-#elif XASH_WIN32
+#elif XASH_WIN32 && !XASH_XBOX
 	return Win32_NanoSleep( nsec );
 #else
 	return false;
 #endif
 }
 
-#if XASH_WIN32 || XASH_FREEBSD || XASH_NETBSD || XASH_OPENBSD || XASH_ANDROID || XASH_LINUX || XASH_APPLE
+#if XASH_WIN32 && !XASH_XBOX || XASH_FREEBSD || XASH_NETBSD || XASH_OPENBSD || XASH_ANDROID || XASH_LINUX || XASH_APPLE
 void Sys_SetupCrashHandler( const char *argv0 );
 void Sys_RestoreCrashHandler( void );
 #else
@@ -306,7 +306,7 @@ static inline void Platform_SetTimer( float time )
 
 static inline char *Platform_Input( void )
 {
-#if XASH_WIN32
+#if XASH_WIN32 && !XASH_XBOX
 	return Wcon_Input();
 #elif XASH_POSIX && !XASH_MOBILE_PLATFORM && !XASH_LOW_MEMORY
 	return Posix_Input();

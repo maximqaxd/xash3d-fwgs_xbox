@@ -96,16 +96,16 @@ SUBDIRS = [
 	Subproject('ref/null',              lambda x: x.env.CLIENT and x.env.NULL),
 	Subproject('3rdparty/bzip2',        lambda x: x.env.CLIENT and not x.env.HAVE_SYSTEM_BZ2),
 	Subproject('3rdparty/opus',         lambda x: x.env.CLIENT and not x.env.HAVE_SYSTEM_OPUS),
-	Subproject('3rdparty/libogg',       lambda x: x.env.CLIENT and not x.env.HAVE_SYSTEM_OGG),
-	Subproject('3rdparty/vorbis',       lambda x: x.env.CLIENT and (not x.env.HAVE_SYSTEM_VORBIS or not x.env.HAVE_SYSTEM_VORBISFILE)),
-	Subproject('3rdparty/opusfile',     lambda x: x.env.CLIENT and not x.env.HAVE_SYSTEM_OPUSFILE),
+	Subproject('3rdparty/libogg',       lambda x: x.env.CLIENT and x.env.DEST_OS != 'xbox' and not x.env.HAVE_SYSTEM_OGG),
+	Subproject('3rdparty/vorbis',       lambda x: x.env.CLIENT and x.env.DEST_OS != 'xbox' and (not x.env.HAVE_SYSTEM_VORBIS or not x.env.HAVE_SYSTEM_VORBISFILE)),
+	Subproject('3rdparty/opusfile',     lambda x: x.env.CLIENT and x.env.DEST_OS != 'xbox' and not x.env.HAVE_SYSTEM_OPUSFILE),
 	Subproject('3rdparty/maintui',      lambda x: x.env.CLIENT and x.env.TUI),
-	Subproject('3rdparty/mainui',       lambda x: x.env.CLIENT and x.env.DEST_OS != 'android'),
+	Subproject('3rdparty/mainui',       lambda x: x.env.CLIENT and x.env.DEST_OS not in ('android', 'xbox')),
 	Subproject('3rdparty/vgui_support', lambda x: x.env.CLIENT),
 	Subproject('3rdparty/MultiEmulator',lambda x: x.env.CLIENT),
 #	Subproject('3rdparty/freevgui',     lambda x: x.env.CLIENT),
 	Subproject('stub/client',           lambda x: x.env.CLIENT),
-	Subproject('game_launch',           lambda x: x.env.LAUNCHER),
+	Subproject('game_launch',           lambda x: x.env.LAUNCHER and x.env.DEST_OS != 'xbox'),
 	Subproject('engine'), # keep latest for static linking
 
 	# enabled optionally
@@ -128,7 +128,7 @@ REFDLLS = [
 ]
 
 def options(opt):
-	opt.load('reconfigure compiler_optimizations xshlib xcompile compiler_cxx compiler_c sdl2 clang_compilation_database strip_on_install waf_unit_test msvs subproject ninja')
+	opt.load('reconfigure compiler_optimizations xshlib xcompile compiler_cxx compiler_c sdl2 clang_compilation_database strip_on_install waf_unit_test msvs subproject ninja xbox')
 
 	grp = opt.add_option_group('Common options')
 
@@ -234,7 +234,7 @@ def configure(conf):
 	if conf.env.COMPILER_CC == 'msvc':
 		conf.load('msvc_pdb')
 
-	conf.load('msvs subproject clang_compilation_database strip_on_install waf_unit_test enforce_pic force_32bit ninja')
+	conf.load('msvs subproject clang_compilation_database strip_on_install waf_unit_test enforce_pic force_32bit ninja xbox')
 
 	conf.env.MSVC_SUBSYSTEM = 'WINDOWS'
 	conf.env.CONSOLE_SUBSYSTEM = 'CONSOLE'
@@ -266,9 +266,19 @@ def configure(conf):
 		conf.options.BUILD_BUNDLED_DEPS = True
 		conf.options.GLES3COMPAT      = True
 		conf.options.GL               = False
+	elif conf.env.DEST_OS == 'xbox':
+		conf.options.GL               = True
+		conf.options.NANOGL           = False
+		conf.options.GLWES            = False
+		conf.options.GL4ES            = False
+		conf.options.GLES3COMPAT      = False
+		conf.options.SOFT             = False
+		conf.options.NULL             = False
+		conf.options.LOW_MEMORY       = 2
+		conf.env.append_unique('LINKFLAGS', ['-Wl,/STACK:1048576', '-Wl,/MAP'])
 
 	# psvita needs -fPIC set manually and static builds are incompatible with -fPIC
-	enforce_pic = conf.env.DEST_OS != 'psvita' and not conf.env.STATIC_LINKING
+	enforce_pic = conf.env.DEST_OS not in ['psvita', 'xbox'] and not conf.env.STATIC_LINKING
 	conf.check_pic(enforce_pic)
 
 	# NOTE: We restrict 64-bit builds ONLY for Win/Linux running on Intel architecture
@@ -301,6 +311,9 @@ def configure(conf):
 		conf.env.append_unique('CXXFLAGS_cxxshlib', ['-fPIC', '-fno-use-cxa-atexit'])
 		conf.env.append_unique('LINKFLAGS_cshlib', ['-nostdlib', '-Wl,--unresolved-symbols=ignore-all'])
 		conf.env.append_unique('LINKFLAGS_cxxshlib', ['-nostdlib', '-Wl,--unresolved-symbols=ignore-all'])
+	elif conf.env.DEST_OS == 'xbox':
+		conf.env.append_unique('CFLAGS_cshlib', ['-mstack-probe-size=999999'])
+		conf.env.append_unique('CXXFLAGS_cxxshlib', ['-mstack-probe-size=999999'])
 	# check if we need to use irix linkflags
 	elif conf.env.DEST_OS == 'irix' and conf.env.COMPILER_CC == 'gcc':
 		linkflags.remove('-Wl,--no-undefined')
@@ -415,7 +428,7 @@ def configure(conf):
 	if not conf.options.DEDICATED:
 		conf.env.SERVER = conf.options.ENABLE_DEDICATED
 		conf.env.CLIENT = True
-		conf.env.LAUNCHER = conf.env.DEST_OS not in ['android', 'nswitch', 'psvita', 'dos', 'emscripten'] and not conf.env.IOS and not conf.env.MAGX and not conf.env.STATIC_LINKING
+		conf.env.LAUNCHER = conf.env.DEST_OS not in ['android', 'nswitch', 'psvita', 'dos', 'emscripten', 'xbox'] and not conf.env.IOS and not conf.env.MAGX and not conf.env.STATIC_LINKING
 	else:
 		conf.env.SERVER = True
 		conf.env.CLIENT = False
@@ -425,7 +438,7 @@ def configure(conf):
 
 	conf.define_cond('SUPPORT_HL25_EXTENDED_STRUCTS', conf.options.SUPPORT_HL25_EXTENDED_STRUCTS)
 
-	if conf.options.ENABLE_RPATH and conf.env.DEST_OS not in ['nswitch', 'psvita']:
+	if conf.options.ENABLE_RPATH and conf.env.DEST_OS not in ['nswitch', 'psvita', 'xbox']:
 		if conf.env.DEST_OS == 'openbsd':
 			# OpenBSD requires -z origin to enable $ORIGIN expansion in RPATH
 			conf.env.RPATH_ST = '-Wl,-z,origin,-rpath,%s'
@@ -480,6 +493,11 @@ def configure(conf):
 		else:
 			for i in a:
 				conf.check_cc(lib = i)
+	elif conf.env.DEST_OS == 'xbox':
+		# nxdk: no libdl (LoadLibraryA is in libwinapi.lib, already linked)
+		# no separate libm (math is part of pdclib, already linked)
+		# no Win32 shell/GDI libs
+		pass
 	else:
 		conf.check_cc(lib='dl', mandatory = False)
 		conf.check_cc(lib='m')
@@ -492,8 +510,8 @@ def configure(conf):
 		# with our native API level
 		# https://android.googlesource.com/platform/bionic/+/HEAD/docs/32-bit-abi.md
 		pass
-	elif conf.env.DEST_OS == 'psvita':
-		# PSVita don't have large file support at all
+	elif conf.env.DEST_OS in ['psvita', 'xbox']:
+		# PSVita/Xbox: no large file support (FAT-X is 32-bit file API)
 		pass
 	else:
 		# try to guess how to support large files

@@ -50,6 +50,10 @@ GNU General Public License for more details.
 #include <vitasdk.h>
 #endif
 
+#if XASH_XBOX
+#include <hal/debug.h>
+#endif
+
 #include "menu_int.h" // _UPDATE_PAGE macro
 
 #include "library.h"
@@ -136,7 +140,7 @@ returns username for current profile
 const char *Sys_GetCurrentUser( void )
 {
 	// TODO: move to platform
-#if XASH_WIN32
+#if XASH_WIN32 && !XASH_XBOX
 	static wchar_t sw_userName[MAX_STRING];
 	DWORD size = ARRAYSIZE( sw_userName );
 
@@ -337,7 +341,7 @@ wait for 'Esc' key will be hit
 */
 static void Sys_WaitForQuit( void )
 {
-#if XASH_WIN32
+#if XASH_WIN32 && !XASH_XBOX
 	MSG	msg;
 	msg.message = 0;
 
@@ -407,6 +411,11 @@ void Sys_Error( const char *error, ... )
 	Q_vsnprintf( text, MAX_PRINT_MSG, error, argptr );
 	va_end( argptr );
 
+#if XASH_XBOX
+	// Print to serial so we see the error before the reboot
+	DbgPrint( "*** Sys_Error: %s\n", text );
+#endif
+
 	Sys_DebugBreak();
 
 	SV_SysError( text );
@@ -416,7 +425,7 @@ void Sys_Error( const char *error, ... )
 #if XASH_SDL >= 2
 		if( host.hWnd ) SDL_HideWindow( host.hWnd );
 #endif
-#if XASH_WIN32
+#if XASH_WIN32 && !XASH_XBOX
 		Wcon_ShowConsole( false );
 #endif
 		Sys_Print( text );
@@ -424,7 +433,7 @@ void Sys_Error( const char *error, ... )
 	}
 	else
 	{
-#if XASH_WIN32
+#if XASH_WIN32 && !XASH_XBOX
 		Wcon_ShowConsole( true );
 		Wcon_DisableInput();	// disable input line for dedicated server
 #endif
@@ -443,7 +452,11 @@ Sys_Quit
 void Sys_Quit( const char *reason )
 {
 	Host_ShutdownWithReason( reason );
+#if XASH_XBOX
+	for( ;; ) Platform_Sleep( 1000 );
+#else
 	Host_ExitInMain();
+#endif
 }
 
 /*
@@ -462,7 +475,7 @@ void Sys_Print( const char *pMsg )
 	}
 #endif
 
-#if XASH_WIN32
+#if XASH_WIN32 && !XASH_XBOX
 	{
 		const char	*msg;
 		static char	buffer[MAX_PRINT_MSG];
@@ -627,7 +640,7 @@ qboolean Sys_NewInstance( const char *gamedir, const char *finalmsg )
 	// under normal circumstances it's always going to be the same path
 	exe = strdup( "app0:/eboot.bin" );
 	sceAppMgrLoadExec( exe, newargs, NULL );
-#else
+#elif !XASH_XBOX
 	exelen = wai_getExecutablePath( NULL, 0, NULL );
 	if( exelen >= 0 )
 	{

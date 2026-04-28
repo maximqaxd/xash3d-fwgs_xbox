@@ -97,14 +97,14 @@ qboolean SNDDMA_Init( void )
 	// Also, fun note, GoldSrc seems doesn't use SDL2 for sound stuff at all, as nothing
 	// reference SDL audio functions there. It's probably has DirectSound backend, that's
 	// why modders never stumble upon this bug.
-#if XASH_WIN32
+#if XASH_WIN32 && !XASH_XBOX
 	driver = "directsound";
 
 	if( SDL_getenv( "SDL_AUDIODRIVER" ))
 		driver = NULL; // let SDL2 and user decide
 
 	SDL_SetHint( SDL_HINT_AUDIODRIVER, driver );
-#endif // XASH_WIN32
+#endif // XASH_WIN32 && !XASH_XBOX
 
 	// even if we don't have PA
 	// we still can safely set env variables

@@ -31,7 +31,7 @@ static const struct in6_addr in6addr_any;
 //
 static inline const char *NET_ErrorString( void )
 {
-#if XASH_WIN32
+#if XASH_WIN32 && !XASH_XBOX
 	int err = WSAGetLastError();
 	switch( err )
 	{

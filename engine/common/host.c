@@ -1223,7 +1223,7 @@ int EXPORT Host_Main( int argc, char **argv, const char *progname, int bChangeGa
 
 	if( Host_IsDedicated( ))
 	{
-#ifdef _WIN32
+#if _WIN32 && !XASH_XBOX
 		Wcon_InitConsoleCommands ();
 #endif
 
@@ -1244,7 +1244,7 @@ int EXPORT Host_Main( int argc, char **argv, const char *progname, int bChangeGa
 	switch( host.type )
 	{
 	case HOST_NORMAL:
-#ifdef _WIN32
+#if _WIN32 && !XASH_XBOX
 		Wcon_ShowConsole( false ); // hide console
 #endif
 		// execute startup config and cmdline

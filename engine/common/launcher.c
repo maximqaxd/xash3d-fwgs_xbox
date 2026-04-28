@@ -21,6 +21,10 @@ GNU General Public License for more details.
 #include <SDL.h>
 #endif
 
+#if XASH_XBOX
+#include <hal/video.h>
+#endif
+
 #ifndef XASH_GAMEDIR
 #define XASH_GAMEDIR "valve" // !!! Replace with your default (base) game directory !!!
 #endif
@@ -35,6 +39,9 @@ static void Sys_ChangeGame( const char *progname )
 
 int main( int argc, char **argv )
 {
+#if XASH_XBOX
+	XVideoSetMode(640, 480, 32, REFRESH_DEFAULT);
+#endif
 #if XASH_PSVITA
 	// inject -dev -console into args if required
 	szArgc = PSVita_GetArgv( argc, argv, &szArgv );

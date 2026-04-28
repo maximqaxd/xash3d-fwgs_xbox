@@ -27,6 +27,11 @@ GNU General Public License for more details.
 #include <io.h>
 #endif
 
+#if XASH_XBOX
+#include <hal/debug.h>
+extern void Xbox_SerialPrint( const char *msg );
+#endif
+
 // do not waste precious CPU cycles on mobiles or low memory devices
 #if !XASH_WIN32 && !XASH_MOBILE_PLATFORM && !XASH_LOW_MEMORY && !XASH_EMSCRIPTEN
 #define XASH_COLORIZE_CONSOLE 1
@@ -47,7 +52,7 @@ void Sys_DestroyConsole( void )
 {
 	// last text message into console or log
 	Con_Reportf( "%s: Exiting!\n", __func__ );
-#if XASH_WIN32
+#if XASH_WIN32 && !XASH_XBOX
 	Wcon_DestroyConsole();
 #endif
 }
@@ -80,6 +85,7 @@ static void Sys_FlushLogfile( void )
 
 void Sys_InitLog( void )
 {
+#if !XASH_XBOX
 	const char *mode;
 
 	if( Sys_CheckParm( "-log" ))
@@ -121,6 +127,7 @@ void Sys_InitLog( void )
 		fputs( "================================================================================\n", s_ld.logfile );
 		fflush( s_ld.logfile );
 	}
+#endif
 }
 
 void Sys_CloseLog( const char *finalmsg )
@@ -183,6 +190,7 @@ static qboolean Sys_WriteEscapeSequenceForColorcode( int fd, int c )
 
 static void Sys_PrintLogfile( const int fd, const char *logtime, size_t logtime_len, const char *msg, const int colorize )
 {
+#if !XASH_XBOX
 	const char *p = msg;
 
 	if( logtime_len != 0 )
@@ -229,6 +237,7 @@ static void Sys_PrintLogfile( const int fd, const char *logtime, size_t logtime_
 	// flush the color
 	if( colorize )
 		Sys_WriteEscapeSequenceForColorcode( fd, 7 );
+#endif // !XASH_XBOX
 }
 
 static void Sys_PrintStdout( const char *logtime, size_t logtime_len, const char *msg )
@@ -262,9 +271,25 @@ static void Sys_PrintStdout( const char *logtime, size_t logtime_len, const char
 	}
 #endif
 
-#elif !XASH_WIN32 // Wcon does the job
+#elif !XASH_WIN32 && !XASH_XBOX // Wcon does the job
 	Sys_PrintLogfile( STDOUT_FILENO, logtime, logtime_len, msg, XASH_COLORIZE_CONSOLE );
 	Sys_FlushStdout();
+#elif XASH_XBOX
+	{
+		static char buf[MAX_PRINT_MSG];
+		static char line[MAX_PRINT_MSG + 32];
+
+		// strip color codes for clean serial output
+		COM_StripColors( msg, buf );
+
+		// prepend timestamp if available
+		if( logtime_len > 0 )
+			Q_snprintf( line, sizeof( line ), "%s%s", logtime, buf );
+		else
+			Q_strncpy( line, buf, sizeof( line ));
+
+		Xbox_SerialPrint( line );
+	}
 #endif
 }
 
@@ -406,3 +431,15 @@ void Platform_MessageBox( const char *title, const char *message, qboolean paren
 }
 #endif
 
+#if XASH_MESSAGEBOX == MSGBOX_XBOX
+void Platform_MessageBox( const char *title, const char *message, qboolean parentMainWindow )
+{
+	static char buf[MAX_PRINT_MSG];
+
+	// on-screen so the user sees it
+	debugPrint( "%s: %s\n", title, message );
+	// also to serial
+	Q_snprintf( buf, sizeof( buf ), "XBOX MSGBOX: %s: %s\n", title, message );
+	Xbox_SerialPrint( buf );
+}
+#endif

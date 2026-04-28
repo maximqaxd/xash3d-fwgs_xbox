@@ -146,7 +146,7 @@ R_StudioInit
 void R_StudioInit( void )
 {
 
-#if XASH_PSVITA
+#if XASH_XBOX || XASH_PSVITA
 	// don't do the same array-building work twice since that's what our FFP shim does anyway
 	gEngfuncs.Cvar_FullSet( "r_studio_drawelements", "0", FCVAR_READ_ONLY );
 #endif
@@ -2207,7 +2207,7 @@ static void R_StudioDrawArrays( uint startverts, uint startelems )
 		pglColorPointer( 4, GL_UNSIGNED_BYTE, 0, g_studio.arraycolor );
 	}
 
-#if !defined XASH_NANOGL || defined XASH_WES && XASH_EMSCRIPTEN // WebGL need to know array sizes
+#if (!defined XASH_NANOGL || defined XASH_WES && XASH_EMSCRIPTEN) && !defined XASH_XBOX // WebGL need to know array sizes
 	if( pglDrawRangeElements )
 		pglDrawRangeElements( GL_TRIANGLES, startverts, g_studio.numverts,
 			g_studio.numelems - startelems, GL_UNSIGNED_SHORT, &g_studio.arrayelems[startelems] );

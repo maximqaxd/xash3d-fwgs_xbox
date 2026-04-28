@@ -574,6 +574,7 @@ void R_SetupGL( qboolean set_gl_state )
 	pglMatrixMode( GL_MODELVIEW );
 	GL_LoadMatrix( RI.worldviewMatrix );
 
+#if !XASH_XBOX
 	if( FBitSet( RI.params, RP_CLIPPLANE ))
 	{
 		GLdouble	clip[4];
@@ -587,7 +588,7 @@ void R_SetupGL( qboolean set_gl_state )
 		pglClipPlane( GL_CLIP_PLANE0, clip );
 		pglEnable( GL_CLIP_PLANE0 );
 	}
-
+#endif
 	GL_Cull( GL_FRONT );
 
 	pglDisable( GL_BLEND );
@@ -1080,10 +1081,10 @@ void R_BeginFrame( qboolean clearScene )
 	R_CheckCvars();
 
 	R_Set2DMode( true );
-
+#if !XASH_XBOX
 	// draw buffer stuff
 	pglDrawBuffer( GL_BACK );
-
+#endif
 	// update texture parameters
 	if( FBitSet( gl_texture_nearest.flags|gl_lightmap_nearest.flags|gl_texture_anisotropy.flags|gl_texture_lodbias.flags, FCVAR_CHANGED ))
 		R_SetTextureParameters();

@@ -29,6 +29,12 @@ GNU General Public License for more details.
 
 #if XASH_WIN32
 #include <direct.h>
+#if XASH_XBOX
+#define getcwd( buf, sz ) _getcwd((buf), (sz))
+#include <fileapi.h>
+#include <nxdk/mount.h>
+#include <nxdk/path.h>
+#endif
 #endif
 
 static CVAR_DEFINE_AUTO( fs_mount_hd, "0", FCVAR_PRIVILEGED, "mount high definition content folder" );
@@ -254,6 +260,68 @@ static qboolean FS_LoadProgs( void )
 	return true;
 }
 
+#if XASH_XBOX
+static qboolean FS_MountXboxRodir( char *out, size_t size )
+{
+	char targetPath[MAX_PATH];
+	char *slash;
+	bool ok;
+
+	if( size < 4 )
+		return false;
+
+	nxGetCurrentXbeNtPath( targetPath );
+
+	slash = strrchr( targetPath, '\\' );
+
+	if( !slash || slash == targetPath )
+	{
+		return false;
+	}
+
+	*( slash + 1 ) = '\0';
+
+	if( nxIsDriveMounted( 'D' ))
+		nxUnmountDrive( 'D' );
+
+	ok = nxMountDrive( 'D', targetPath );
+	if( !ok )
+	{
+		ok = nxMountDrive( 'D', "\\Device\\CdRom0\\" );
+	}
+
+	if( !ok )
+	{
+		return false;
+	}
+
+	Q_strncpy( out, "D:\\", size );
+	return true;
+}
+
+static qboolean FS_MountXboxRootdir( char *out, size_t size )
+{
+	if( size < 4 )
+		return false;
+
+	if( !nxIsDriveMounted( 'E' ))
+	{
+		if( !nxMountDrive( 'E', "\\Device\\Harddisk0\\Partition1\\" ))
+		{
+			// Fall back to D: as both root and rodir
+			Q_strncpy( out, "D:\\", size );
+			return true;
+		}
+	}
+
+
+	CreateDirectoryA( "E:\\Xash3D", NULL );
+
+	Q_strncpy( out, "E:\\Xash3D\\", size );
+	return true;
+}
+#endif
+
 static qboolean FS_DetermineRootDirectory( char *out, size_t size )
 {
 	const char *path = getenv( "XASH3D_BASEDIR" );
@@ -273,6 +341,12 @@ static qboolean FS_DetermineRootDirectory( char *out, size_t size )
 	Sys_Error( "couldn't find %s data directory", XASH_ENGINE_NAME );
 	return false;
 #elif ( XASH_SDL >= 2 ) && !XASH_NSWITCH // GetBasePath not impl'd in switch-sdl2
+#if XASH_XBOX
+	if( FS_MountXboxRootdir( out, size ))
+		return true;
+	Sys_Error( "couldn't determine current directory: failed to mount HDD" );
+	return false;
+#else
 	path = SDL_GetBasePath();
 
 #if XASH_APPLE
@@ -298,12 +372,20 @@ static qboolean FS_DetermineRootDirectory( char *out, size_t size )
 	Sys_Error( "couldn't determine current directory: %s", SDL_GetError( ));
 #endif // !( XASH_POSIX || XASH_WIN32 )
 	return false;
+#endif // !XASH_XBOX
 #else // generic case
+#if XASH_XBOX
+	if( FS_MountXboxRootdir( out, size ))
+		return true;
+	Sys_Error( "couldn't determine current directory: failed to mount HDD" );
+	return false;
+#else
 	if( getcwd( out, size ))
 		return true;
 
 	Sys_Error( "couldn't determine current directory: %s", strerror( errno ));
 	return false;
+#endif // !XASH_XBOX
 #endif // generic case
 }
 
@@ -320,7 +402,11 @@ static qboolean FS_DetermineReadOnlyRootDirectory( char *out, size_t size )
 		return true;
 	}
 
-#if XASH_IOS
+#if XASH_XBOX
+	if( FS_MountXboxRodir( out, size ))
+		return true;
+	return false;
+#elif XASH_IOS
 	Q_strncpy( out, IOS_GetExecDir(), size );
 	return true;
 #endif

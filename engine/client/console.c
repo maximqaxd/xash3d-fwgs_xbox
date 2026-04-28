@@ -2284,7 +2284,7 @@ void Con_VidInit( void )
 	Con_LoadConchars();
 	Con_CheckResize();
 
-#if XASH_LOW_MEMORY
+#if XASH_LOW_MEMORY && !XASH_XBOX
 	con.background = R_GetBuiltinTexture( REF_GRAY_TEXTURE );
 #else
 	// loading console image

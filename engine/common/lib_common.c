@@ -96,7 +96,14 @@ dll_user_t *FS_FindLibrary( const char *dllname, qboolean directpath )
 	{
 		p = Mem_Calloc( host.mempool, sizeof( dll_user_t ));
 		Q_strncpy( p->shortPath, dllname, sizeof( p->shortPath ));
+#if XASH_XBOX
+		if( !Q_strchr( p->shortPath, ':' ))
+			Q_snprintf( p->fullPath, sizeof( p->fullPath ), "D:\\%s", p->shortPath );
+		else
+			Q_strncpy( p->fullPath, dllname, sizeof( p->fullPath ));
+#else
 		Q_strncpy( p->fullPath, dllname, sizeof( p->fullPath ));
+#endif
 		Q_strncpy( p->dllName, dllname, sizeof( p->dllName ));
 
 		return p;
@@ -140,8 +147,11 @@ static void COM_GenerateClientLibraryPath( const char *name, char *out, size_t s
 	string libname;
 
 	COM_GenerateCommonLibraryName( name, libname, sizeof( libname ));
-
+#if XASH_XBOX
+	Q_snprintf( out, size, "%s\\%s", GI->dll_path, libname );
+#else
 	Q_snprintf( out, size, "%s/%s", GI->dll_path, libname );
+#endif
 #endif
 }
 
@@ -197,8 +207,11 @@ static void COM_GenerateServerLibraryPath( const char *alt_dllname, char *out, s
 	}
 
 	COM_GenerateCommonLibraryName( base_dllname, libname, sizeof( libname ));
-
+#if XASH_XBOX
+	Q_snprintf( out, size, "%s\\%s", dir, libname );
+#else
 	Q_snprintf( out, size, "%s/%s", dir, libname );
+#endif
 #endif
 }
 

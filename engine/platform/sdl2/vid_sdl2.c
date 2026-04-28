@@ -306,7 +306,7 @@ static void R_FreeVideoModes( void )
 	vidmodes = NULL;
 }
 
-#if XASH_WIN32
+#if XASH_WIN32 && !XASH_XBOX
 static qboolean WIN_SetWindowIcon( HICON ico )
 {
 	SDL_SysWMinfo wminfo;
@@ -475,7 +475,7 @@ static void VID_SetWindowIcon( SDL_Window *hWnd )
 	}
 
 	// ICO support only for Win32
-#if XASH_WIN32
+#if XASH_WIN32 && !XASH_XBOX
 	const char *disk_iconpath = FS_GetDiskPath( GI->iconpath, true );
 
 	if( disk_iconpath )
@@ -498,7 +498,7 @@ static void VID_SetWindowIcon( SDL_Window *hWnd )
 	}
 
 	WIN_SetWindowIcon( LoadIcon( GetModuleHandle( NULL ), MAKEINTRESOURCE( 101 )));
-#endif
+#endif // XASH_WIN32 && !XASH_XBOX
 }
 
 static qboolean VID_GetDisplayBounds( int display_index, SDL_Window *hWnd, SDL_Rect *rect )
@@ -516,11 +516,11 @@ static qboolean VID_GetDisplayBounds( int display_index, SDL_Window *hWnd, SDL_R
 	}
 	else
 	{
-#if XASH_WIN32
+#if XASH_WIN32 && !XASH_XBOX
 		wrc.left = GetSystemMetrics( SM_CYSIZEFRAME );
 		wrc.right = wrc.bottom = wrc.left;
 		wrc.top = GetSystemMetrics( SM_CYSMCAPTION ) + wrc.left;
-#endif // XASH_WIN32
+#endif // XASH_WIN32 && !XASH_XBOX
 	}
 
 	rect->x += wrc.left + wrc.right;
@@ -633,9 +633,10 @@ static rserr_t VID_SetScreenResolution( int width, int height, window_mode_t win
 
 	VID_SaveWindowSize( out_width, out_height );
 
+#if !XASH_XBOX
 	// set icon that could've been lost after changing modes
 	VID_SetWindowIcon( host.hWnd );
-
+#endif 
 	return rserr_ok;
 }
 
@@ -698,19 +699,22 @@ static rserr_t VID_CreateWindow( const int input_width, const int input_height, 
 			goto cleanup;
 	}
 
+#if !XASH_XBOX
 	VID_SetWindowIcon( host.hWnd );
+#endif
 	SDL_ShowWindow( host.hWnd );
 	SDL_RaiseWindow( host.hWnd );
 
 	if( glw_state.software )
 	{
 		char cmd[64];
-
+#if !XASH_XBOX
 		if( Sys_GetParmFromCmdLine( "-sdl_renderer", cmd ))
+#endif
 		{
 			int sdl_renderer = Q_max( -1, Q_atoi( cmd ));
 
-			sw.renderer = SDL_CreateRenderer( host.hWnd, sdl_renderer, 0 );
+			sw.renderer = SDL_CreateRenderer( host.hWnd, -1, 0 );
 
 			if( !sw.renderer )
 			{
@@ -905,7 +909,7 @@ qboolean R_Init_Video( ref_graphic_apis_t type )
 	SDL_GetCurrentDisplayMode( VID_GetDisplayIndex( __func__, NULL ), &display_mode );
 
 	refState.desktopBitsPixel = SDL_BITSPERPIXEL( display_mode.format );
-
+#if !XASH_XBOX
 	if( Sys_CheckParm( "-egl" ))
 	{
 		// EGL doesn't mean we want GLES context
@@ -916,6 +920,7 @@ qboolean R_Init_Video( ref_graphic_apis_t type )
 
 		SDL_SetHint( SDL_HINT_VIDEO_X11_FORCE_EGL, "1" );
 	}
+#endif // !XASH_XBOX
 
 	SDL_SetHint( SDL_HINT_QTWAYLAND_WINDOW_FLAGS, "OverridesSystemGestures" );
 	SDL_SetHint( SDL_HINT_QTWAYLAND_CONTENT_ORIENTATION, "landscape" );

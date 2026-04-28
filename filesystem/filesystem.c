@@ -27,7 +27,9 @@ GNU General Public License for more details.
 #if XASH_WIN32
 #include <direct.h>
 #include <io.h>
+#if !XASH_XBOX 
 #include "utflib.h"
+#endif
 #elif XASH_DOS4GW
 #include <direct.h>
 #else
@@ -281,9 +283,17 @@ void listdirectory( stringlist_t *list, const char *path, qboolean dirs_only )
 	char pattern[4096];
 	struct _finddata_t n_file;
 	intptr_t hFile;
-
+#if XASH_XBOX
+	{
+		size_t len = Q_strlen( path );
+		if( len > 0 && ( path[len - 1] == '\\' || path[len - 1] == '/' ))
+			Q_snprintf( pattern, sizeof( pattern ), "%s*", path );
+		else
+			Q_snprintf( pattern, sizeof( pattern ), "%s\\*", path );
+	}
+#else
 	Q_snprintf( pattern, sizeof( pattern ), "%s/*", path );
-
+#endif
 	// ask for the directory listing handle
 	hFile = _findfirst( pattern, &n_file );
 	if( hFile == -1 ) return;
@@ -336,7 +346,7 @@ OTHER PRIVATE FUNCTIONS
 =============================================================================
 */
 
-#if XASH_WIN32
+#if XASH_WIN32 && !XASH_XBOX
 /*
 ====================
 FS_PathToWideChar
@@ -761,7 +771,11 @@ static void FS_InitGameInfo( gameinfo_t *GameInfo, const char *gamedir, qboolean
 		Q_strncpy( GameInfo->title, gamedir, sizeof( GameInfo->title ));
 		Q_strncpy( GameInfo->startmap, "c0a0", sizeof( GameInfo->startmap ));
 		Q_strncpy( GameInfo->dll_path, "cl_dlls", sizeof( GameInfo->dll_path ));
+#if XASH_XBOX
+		Q_strncpy( GameInfo->game_dll, "dlls\\hl.dll", sizeof( GameInfo->game_dll ));
+#else
 		Q_strncpy( GameInfo->game_dll, "dlls/hl.dll", sizeof( GameInfo->game_dll ));
+#endif
 		Q_strncpy( GameInfo->game_dll_linux, "dlls/hl.so", sizeof( GameInfo->game_dll_linux ));
 		Q_strncpy( GameInfo->game_dll_osx, "dlls/hl.dylib", sizeof( GameInfo->game_dll_osx ));
 	}
@@ -1040,7 +1054,11 @@ static void FS_ParseGenericGameInfo( gameinfo_t *GameInfo, const char *buf, cons
 
 	// make sure what gamedir is really exist
 	// a1ba: why we are doing this???
+#if XASH_XBOX
+	Q_snprintf( token, sizeof( token ), "%s\\%s", fs_rootdir, GameInfo->falldir );
+#else
 	Q_snprintf( token, sizeof( token ), "%s/%s", fs_rootdir, GameInfo->falldir );
+#endif
 	if( !FS_SysFolderExists( token ))
 	{
 		if( !COM_StringEmpty( fs_rodir ))
@@ -1169,7 +1187,11 @@ static qboolean FS_CheckForXashGameDir( const char *gamedir )
 	{
 		char buf[MAX_SYSPATH];
 
+#if XASH_XBOX
+		if( Q_snprintf( buf, sizeof( buf ), "%s\\%s", gamedir, files[i] ) > 0 )
+#else
 		if( Q_snprintf( buf, sizeof( buf ), "%s/%s", gamedir, files[i] ) > 0 )
+#endif
 		{
 			if( FS_SysFileExists( buf ))
 				return true;
@@ -1193,9 +1215,29 @@ static qboolean FS_ParseGameInfo( const char *gamedir, gameinfo_t *GameInfo, qbo
 	time_t gameinfo_mtime = -1;
 
 	if( rodir )
+	{
+#if XASH_XBOX
+		size_t rlen = Q_strlen( fs_rodir );
+		if( rlen > 0 && ( fs_rodir[rlen-1] == '\\' || fs_rodir[rlen-1] == '/' ))
+			Q_snprintf( gamedir_path, sizeof( gamedir_path ), "%s%s", fs_rodir, gamedir );
+		else
+			Q_snprintf( gamedir_path, sizeof( gamedir_path ), "%s\\%s", fs_rodir, gamedir );
+#else
 		Q_snprintf( gamedir_path, sizeof( gamedir_path ), "%s/%s", fs_rodir, gamedir );
+#endif
+	}
 	else
+	{
+#if XASH_XBOX
+		size_t rlen = Q_strlen( fs_rootdir );
+		if( rlen > 0 && ( fs_rootdir[rlen-1] == '\\' || fs_rootdir[rlen-1] == '/' ))
+			Q_snprintf( gamedir_path, sizeof( gamedir_path ), "%s%s", fs_rootdir, gamedir );
+		else
+			Q_snprintf( gamedir_path, sizeof( gamedir_path ), "%s\\%s", fs_rootdir, gamedir );
+#else
 		Q_snprintf( gamedir_path, sizeof( gamedir_path ), "%s", gamedir );
+#endif
+	}
 
 	if( !FS_CheckForXashGameDir( gamedir_path ))
 	{
@@ -1211,10 +1253,13 @@ static qboolean FS_ParseGameInfo( const char *gamedir, gameinfo_t *GameInfo, qbo
 		// don't add empty or addon directories
 		return false;
 	}
-
+#if XASH_XBOX
+	Q_snprintf( gameinfo_path, sizeof( gameinfo_path ), "%s\\gameinfo.txt", gamedir_path );
+	Q_snprintf( liblist_path, sizeof( liblist_path ), "%s\\liblist.gam", gamedir_path );
+#else
 	Q_snprintf( gameinfo_path, sizeof( gameinfo_path ), "%s/gameinfo.txt", gamedir_path );
 	Q_snprintf( liblist_path, sizeof( liblist_path ), "%s/liblist.gam", gamedir_path );
-
+#endif
 	liblist_mtime = FS_SysFileTime( liblist_path );
 	gameinfo_mtime = FS_SysFileTime( gameinfo_path );
 
@@ -1307,46 +1352,92 @@ void FS_AddGameHierarchy( const char *dir, uint flags )
 			SetBits( new_flags, FS_GAMERODIR_PATH );
 
 		FS_AllowDirectPaths( true );
+#if XASH_XBOX
+		{
+			size_t rlen = Q_strlen( fs_rodir );
+			qboolean has_sep = rlen > 0 && ( fs_rodir[rlen-1] == '\\' || fs_rodir[rlen-1] == '/' );
+			if( has_sep )
+				Q_snprintf( buf, sizeof( buf ), "%s%s\\", fs_rodir, dir );
+			else
+				Q_snprintf( buf, sizeof( buf ), "%s\\%s\\", fs_rodir, dir );
+		}
+#else
 		Q_snprintf( buf, sizeof( buf ), "%s/%s/", fs_rodir, dir );
+#endif
 		FS_AddGameDirectory( buf, new_flags );
 		FS_AllowDirectPaths( false );
 	}
 
 	if( isGameDir )
 	{
+#if XASH_XBOX
+		Q_snprintf( buf, sizeof( buf ), "%s%s\\" DEFAULT_DOWNLOADED_DIRECTORY, fs_rootdir, dir );
+#else
 		Q_snprintf( buf, sizeof( buf ), "%s/" DEFAULT_DOWNLOADED_DIRECTORY, dir );
+#endif
 		FS_AddGameDirectory( buf, FS_NOWRITE_PATH|FS_CUSTOM_PATH );
 	}
+#if XASH_XBOX
+	{
+		size_t rlen = Q_strlen( fs_rootdir );
+		qboolean has_sep = rlen > 0 && ( fs_rootdir[rlen-1] == '\\' || fs_rootdir[rlen-1] == '/' );
+		if( has_sep )
+			Q_snprintf( buf, sizeof( buf ), "%s%s\\", fs_rootdir, dir );
+		else
+			Q_snprintf( buf, sizeof( buf ), "%s\\%s\\", fs_rootdir, dir );
+	}
+#else
 	Q_snprintf( buf, sizeof( buf ), "%s/", dir );
+#endif
 	FS_AddGameDirectory( buf, flags );
 
 	if( FBitSet( flags, FS_MOUNT_HD ))
 	{
+#if XASH_XBOX
+		Q_snprintf( buf, sizeof( buf ), "%s%s_hd\\", fs_rootdir, dir );
+#else
 		Q_snprintf( buf, sizeof( buf ), "%s_hd/", dir );
+#endif
 		FS_AddGameDirectory( buf, flags|FS_NOWRITE_PATH|FS_CUSTOM_PATH );
 	}
 
 	if( FBitSet( flags, FS_MOUNT_ADDON ))
 	{
+#if XASH_XBOX
+		Q_snprintf( buf, sizeof( buf ), "%s%s_addon\\", fs_rootdir, dir );
+#else
 		Q_snprintf( buf, sizeof( buf ), "%s_addon/", dir );
+#endif
 		FS_AddGameDirectory( buf, flags|FS_NOWRITE_PATH|FS_CUSTOM_PATH );
 	}
 
 	if( FBitSet( flags, FS_MOUNT_LV ))
 	{
+#if XASH_XBOX
+		Q_snprintf( buf, sizeof( buf ), "%s%s_lv\\", fs_rootdir, dir );
+#else
 		Q_snprintf( buf, sizeof( buf ), "%s_lv/", dir );
+#endif
 		FS_AddGameDirectory( buf, flags|FS_NOWRITE_PATH|FS_CUSTOM_PATH );
 	}
 
 	if( FBitSet( flags, FS_MOUNT_L10N ) && !COM_StringEmpty( fs_language ) && Q_isalpha( fs_language ))
 	{
+#if XASH_XBOX
+		Q_snprintf( buf, sizeof( buf ), "%s%s_%s\\", fs_rootdir, dir, fs_language );
+#else
 		Q_snprintf( buf, sizeof( buf ), "%s_%s/", dir, fs_language );
+#endif
 		FS_AddGameDirectory( buf, flags|FS_NOWRITE_PATH|FS_CUSTOM_PATH );
 	}
 
 	if( isGameDir )
 	{
+#if XASH_XBOX
+		Q_snprintf( buf, sizeof( buf ), "%s%s\\" DEFAULT_CUSTOM_DIRECTORY, fs_rootdir, dir );
+#else
 		Q_snprintf( buf, sizeof( buf ), "%s/" DEFAULT_CUSTOM_DIRECTORY, dir );
+#endif
 		FS_AddGameDirectory( buf, FS_NOWRITE_PATH|FS_CUSTOM_PATH );
 	}
 }
@@ -1437,7 +1528,18 @@ static void FS_LoadGameInfo( uint32_t flags, const char *language )
 	{
 		// ensure we have directory in rwdir
 		char buf[MAX_SYSPATH + MAX_QPATH + 2]; // and have plenty of space
+#if XASH_XBOX
+		{
+			size_t rlen = Q_strlen( fs_rootdir );
+			qboolean has_sep = rlen > 0 && ( fs_rootdir[rlen-1] == '\\' || fs_rootdir[rlen-1] == '/' );
+			if( has_sep )
+				Q_snprintf( buf, sizeof( buf ), "%s%s\\", fs_rootdir, FI.GameInfo->gamefolder );
+			else
+				Q_snprintf( buf, sizeof( buf ), "%s\\%s\\", fs_rootdir, FI.GameInfo->gamefolder );
+		}
+#else
 		Q_snprintf( buf, sizeof( buf ), "%s/%s/", fs_rootdir, FI.GameInfo->gamefolder );
+#endif
 		FS_CreatePath( buf );
 	}
 
@@ -1555,11 +1657,37 @@ static qboolean FS_FindLibrary( const char *dllname, qboolean directpath, fs_dll
 			// rather than figuring out whether path is absolute, just check if it matches
 			if( !COM_StringEmpty( fs_rodir ) && !Q_strnicmp( search->filename, fs_rodir, Q_strlen( fs_rodir )))
 			{
+#if XASH_XBOX
+				{
+					size_t slen = Q_strlen( search->filename );
+					qboolean has_sep = slen > 0 && ( search->filename[slen-1] == '\\' || search->filename[slen-1] == '/' );
+					if( has_sep )
+						Q_snprintf( dllInfo->fullPath, sizeof( dllInfo->fullPath ), "%s%s", search->filename, dllInfo->shortPath );
+					else
+						Q_snprintf( dllInfo->fullPath, sizeof( dllInfo->fullPath ), "%s\\%s", search->filename, dllInfo->shortPath );
+				}
+#else
 				Q_snprintf( dllInfo->fullPath, sizeof( dllInfo->fullPath ), "%s%s", search->filename, dllInfo->shortPath );
+#endif
 			}
 			else
 			{
+#if XASH_XBOX
+				{
+					size_t rlen = Q_strlen( fs_rootdir );
+					size_t slen = Q_strlen( search->filename );
+					qboolean r_sep = rlen > 0 && ( fs_rootdir[rlen-1] == '\\' || fs_rootdir[rlen-1] == '/' );
+					qboolean s_sep = slen > 0 && ( search->filename[slen-1] == '\\' || search->filename[slen-1] == '/' );
+					if( r_sep || slen == 0 )
+						Q_snprintf( dllInfo->fullPath, sizeof( dllInfo->fullPath ), "%s%s%s%s",
+							fs_rootdir, search->filename, s_sep || slen == 0 ? "" : "\\", dllInfo->shortPath );
+					else
+						Q_snprintf( dllInfo->fullPath, sizeof( dllInfo->fullPath ), "%s\\%s%s%s",
+							fs_rootdir, search->filename, s_sep || slen == 0 ? "" : "\\", dllInfo->shortPath );
+				}
+#else
 				Q_snprintf( dllInfo->fullPath, sizeof( dllInfo->fullPath ), "%s/%s%s", fs_rootdir, search->filename, dllInfo->shortPath );
+#endif
 			}
 		}
 		else
@@ -1643,6 +1771,11 @@ static void FS_ValidateDirectories( const char *path, qboolean *has_base_dir, qb
 {
 	stringlist_t dirs;
 	int i;
+#if XASH_XBOX
+	char fullpath[MAX_SYSPATH];
+	size_t pathlen = Q_strlen( path );
+	qboolean has_sep = pathlen > 0 && ( path[pathlen - 1] == '\\' || path[pathlen - 1] == '/' );
+#endif
 
 	stringlistinit( &dirs );
 	listdirectory( &dirs, path, true );
@@ -1650,8 +1783,18 @@ static void FS_ValidateDirectories( const char *path, qboolean *has_base_dir, qb
 
 	for( i = 0; i < dirs.numstrings; i++ )
 	{
+#if XASH_XBOX
+		if( has_sep )
+			Q_snprintf( fullpath, sizeof( fullpath ), "%s%s", path, dirs.strings[i] );
+		else
+			Q_snprintf( fullpath, sizeof( fullpath ), "%s\\%s", path, dirs.strings[i] );
+
+		if( !FS_SysFolderExists( fullpath ))
+			continue;
+#else
 		if( !FS_SysFolderExists( dirs.strings[i] ))
 			continue;
+#endif
 
 		if( !Q_stricmp( fs_basedir, dirs.strings[i] ))
 			*has_base_dir = true;
@@ -1703,7 +1846,11 @@ qboolean FS_InitStdio( qboolean unused_set_to_true, const char *rootdir, const c
 		qboolean has_base_dir = false;
 		qboolean has_game_dir = false;
 
+#if XASH_XBOX
+		FS_ValidateDirectories( fs_rootdir, &has_base_dir, &has_game_dir );
+#else
 		FS_ValidateDirectories( "./", &has_base_dir, &has_game_dir );
+#endif
 
 		if( !has_game_dir )
 		{
@@ -1725,10 +1872,18 @@ qboolean FS_InitStdio( qboolean unused_set_to_true, const char *rootdir, const c
 	// now start building first level of directory hierarchy
 	if( !COM_StringEmpty( fs_rodir ))
 	{
+#if XASH_XBOX
+		Q_snprintf( buf, sizeof( buf ), "%s\\", fs_rodir );
+#else
 		Q_snprintf( buf, sizeof( buf ), "%s/", fs_rodir );
+#endif
 		FS_AddGameDirectory( buf, FS_STATIC_PATH|FS_NOWRITE_PATH );
 	}
+#if XASH_XBOX
+	FS_AddGameDirectory( fs_rootdir, FS_STATIC_PATH );
+#else
 	FS_AddGameDirectory( "./", FS_STATIC_PATH );
+#endif
 
 	// but scan rodir for games first
 	if( !COM_StringEmpty( fs_rodir ))
@@ -1739,7 +1894,17 @@ qboolean FS_InitStdio( qboolean unused_set_to_true, const char *rootdir, const c
 
 		for( i = 0; i < dirs.numstrings; i++ )
 		{
+#if XASH_XBOX
+			{
+				size_t rlen = Q_strlen( fs_rodir );
+				if( rlen > 0 && ( fs_rodir[rlen-1] == '\\' || fs_rodir[rlen-1] == '/' ))
+					Q_snprintf( buf, sizeof( buf ), "%s%s", fs_rodir, dirs.strings[i] );
+				else
+					Q_snprintf( buf, sizeof( buf ), "%s\\%s", fs_rodir, dirs.strings[i] );
+			}
+#else
 			Q_snprintf( buf, sizeof( buf ), "%s/%s", fs_rodir, dirs.strings[i] );
+#endif
 			if( !FS_SysFolderExists( buf ))
 				continue;
 
@@ -1756,15 +1921,32 @@ qboolean FS_InitStdio( qboolean unused_set_to_true, const char *rootdir, const c
 	rodir_num_games = FI.numgames;
 
 	stringlistinit( &dirs );
+#if XASH_XBOX
+	listdirectory( &dirs, fs_rootdir, true );
+#else
 	listdirectory( &dirs, "./", true );
+#endif
 	stringlistsort( &dirs );
 
 	for( i = 0; i < dirs.numstrings; i++ )
 	{
 		int j;
-
+#if XASH_XBOX
+		{
+			char fullpath[MAX_SYSPATH];
+			size_t rlen = Q_strlen( fs_rootdir );
+			qboolean has_sep = rlen > 0 && ( fs_rootdir[rlen - 1] == '\\' || fs_rootdir[rlen - 1] == '/' );
+			if( has_sep )
+				Q_snprintf( fullpath, sizeof( fullpath ), "%s%s", fs_rootdir, dirs.strings[i] );
+			else
+				Q_snprintf( fullpath, sizeof( fullpath ), "%s\\%s", fs_rootdir, dirs.strings[i] );
+			if( !FS_SysFolderExists( fullpath ))
+				continue;
+		}
+#else
 		if( !FS_SysFolderExists( dirs.strings[i] ))
 			continue;
+#endif
 
 		// update gameinfo from rwdir, if it's newer
 		// with rodir we should never create new gameinfos anymore,
@@ -1866,9 +2048,12 @@ Internal function used to determine filetime
 */
 int FS_SysFileTime( const char *filename )
 {
-#if XASH_WIN32
+#if XASH_WIN32 && !XASH_XBOX
 	struct _stat buf;
 	if( _wstat( FS_PathToWideChar( filename ), &buf ) < 0 )
+#elif XASH_XBOX
+	struct _stat buf;
+	if( _stat( filename, &buf ) < 0 )
 #else
 	struct stat buf;
 	if( stat( filename, &buf ) < 0 )
@@ -1951,8 +2136,10 @@ file_t *FS_SysOpen( const char *filepath, const char *mode )
 
 	if( fd < 0 )
 	{
-#if XASH_WIN32
+#if XASH_WIN32 && !XASH_XBOX
 		fd = _wopen( FS_PathToWideChar( filepath ), mod | opt, 0666 );
+#elif XASH_XBOX
+		fd = _open( filepath, mod | opt, 0666 );
 #else
 		fd = open( filepath, mod|opt, 0666 );
 #endif
@@ -2058,9 +2245,15 @@ Look for a file in the filesystem only
 */
 qboolean FS_SysFileExists( const char *path )
 {
-#if XASH_WIN32
+#if XASH_WIN32 && !XASH_XBOX
 	struct _stat buf;
 	if( _wstat( FS_PathToWideChar( path ), &buf ) < 0 )
+#elif XASH_XBOX
+	struct _stat buf;
+	if( _stat( path, &buf ) < 0 )
+		return false;
+
+	return S_ISREG( buf.st_mode );
 #else
 	struct stat buf;
 	if( stat( path, &buf ) < 0 )
@@ -2079,9 +2272,12 @@ Look for a existing folder
 */
 qboolean FS_SysFolderExists( const char *path )
 {
-#if XASH_WIN32
+#if XASH_WIN32 && !XASH_XBOX
 	struct _stat buf;
 	if( _wstat( FS_PathToWideChar( path ), &buf ) < 0 )
+#elif XASH_XBOX
+	struct _stat buf;
+	if( _stat( path, &buf ) < 0 )
 #else
 	struct stat buf;
 	if( stat( path, &buf ) < 0 )
@@ -2100,9 +2296,12 @@ Check if filesystem entry exists at all, don't mind the type
 */
 qboolean FS_SysFileOrFolderExists( const char *path )
 {
-#if XASH_WIN32
+#if XASH_WIN32 && !XASH_XBOX
 	struct _stat buf;
 	return _wstat( FS_PathToWideChar( path ), &buf ) >= 0;
+#elif XASH_XBOX
+	struct _stat buf;
+	return _stat( path, &buf ) >= 0;
 #else
 	struct stat buf;
 	return stat( path, &buf ) >= 0;
@@ -2119,7 +2318,7 @@ TODO: make this non-fatal
 */
 int FS_SetCurrentDirectory( const char *path )
 {
-#if XASH_WIN32
+#if XASH_WIN32 && !XASH_XBOX
 	if( !SetCurrentDirectoryW( FS_PathToWideChar( path )))
 	{
 		const DWORD fm_flags = FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS | FORMAT_MESSAGE_MAX_WIDTH_MASK;
@@ -2213,8 +2412,47 @@ searchpath_t *FS_FindFile( const char *name, int *index, char *fixedname, size_t
 		if( !Q_strncmp( name, "../", 3 ))
 			name += 3;
 
+#if XASH_XBOX
+		// also probe the rodir (D:\) 
+		if( !COM_StringEmpty( fs_rodir ))
+		{
+			size_t rlen = Q_strlen( fs_rodir );
+			qboolean has_sep = rlen > 0 && ( fs_rodir[rlen-1] == '\\' || fs_rodir[rlen-1] == '/' );
+			if( has_sep )
+				Q_snprintf( netpath, sizeof( netpath ), "%s%s", fs_rodir, name );
+			else
+				Q_snprintf( netpath, sizeof( netpath ), "%s\\%s", fs_rodir, name );
+			Q_snprintf( dirpath, sizeof( dirpath ), "%s", fs_rodir );
+			if( !has_sep ) Q_strncat( dirpath, "\\", sizeof( dirpath ));
+			if( FS_SysFileExists( netpath ))
+			{
+				static searchpath_t fs_directpath_rodir;
+				if( 0 != Q_strcmp( fs_directpath_rodir.filename, dirpath ))
+				{
+					if( fs_directpath_rodir.pfnClose )
+						fs_directpath_rodir.pfnClose( &fs_directpath_rodir );
+					FS_InitDirectorySearchpath( &fs_directpath_rodir, dirpath, 0 );
+				}
+				if( fixedname )
+					Q_strncpy( fixedname, name, len );
+				if( index != NULL )
+					*index = 0;
+				return &fs_directpath_rodir;
+			}
+		}
+		{
+			size_t rlen = Q_strlen( fs_rootdir );
+			qboolean has_sep = rlen > 0 && ( fs_rootdir[rlen-1] == '\\' || fs_rootdir[rlen-1] == '/' );
+			if( has_sep )
+				Q_snprintf( dirpath, sizeof( dirpath ), "%s", fs_rootdir );
+			else
+				Q_snprintf( dirpath, sizeof( dirpath ), "%s\\", fs_rootdir );
+			Q_snprintf( netpath, sizeof( netpath ), "%s%s", dirpath, name );
+		}
+#else
 		Q_snprintf( dirpath, sizeof( dirpath ), "%s/", fs_rootdir );
 		Q_snprintf( netpath, sizeof( netpath ), "%s%s", dirpath, name );
+#endif
 
 		if( FS_SysFileExists( netpath ))
 		{
