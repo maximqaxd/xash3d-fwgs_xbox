@@ -221,7 +221,12 @@ static const dllfunc_t texturecompressionfuncs[] =
 { GL_CALL( glCompressedTexSubImage1DARB ) },
 { GL_CALL( glGetCompressedTexImage ) },
 };
-
+#if XASH_XBOX
+static const dllfunc_t palettedtexturefuncs[] =
+{
+{ GL_CALL( glColorTableEXT ) },
+};
+#endif
 static const dllfunc_t vbofuncs[] =
 {
 { GL_CALL( glBindBufferARB ) },
@@ -631,8 +636,9 @@ GL_SetDefaults
 */
 static void GL_SetDefaults( void )
 {
+#if !XASH_XBOX
 	pglFinish();
-
+#endif 
 	pglClearColor( 0.5f, 0.5f, 0.5f, 1.0f );
 
 	pglDisable( GL_DEPTH_TEST );
@@ -921,6 +927,9 @@ static void GL_InitExtensionsBigGL( void )
 
 	GL_CheckExtension( "GL_ARB_texture_non_power_of_two", NULL, 0, "gl_texture_npot", GL_ARB_TEXTURE_NPOT_EXT, 0 );
 	GL_CheckExtension( "GL_ARB_texture_compression", texturecompressionfuncs, ARRAYSIZE( texturecompressionfuncs ), "gl_texture_dxt_compression", GL_TEXTURE_COMPRESSION_EXT, 0 );
+#if XASH_XBOX
+	GL_CheckExtension( "GL_EXT_paletted_texture", palettedtexturefuncs, ARRAYSIZE( palettedtexturefuncs ), NULL, GL_EXT_GPU_SHADER4, 0 ); 
+#endif
 	if( !GL_CheckExtension( "GL_EXT_texture_edge_clamp", NULL, 0, "gl_clamp_to_edge", GL_CLAMPTOEDGE_EXT, 2.0 )) // present in ES2
 		GL_CheckExtension( "GL_SGIS_texture_edge_clamp", NULL, 0, "gl_clamp_to_edge", GL_CLAMPTOEDGE_EXT, 0 );
 
@@ -1081,7 +1090,7 @@ void GL_InitExtensions( void )
 
 	pglGetIntegerv( GL_MAX_TEXTURE_SIZE, &glConfig.max_2d_texture_size );
 	if( glConfig.max_2d_texture_size <= 0 ) glConfig.max_2d_texture_size = 256;
-#if !XASH_GL4ES
+#if !XASH_GL4ES && !XASH_XBOX
 	// enable gldebug if allowed
 	if( GL_Support( GL_DEBUG_OUTPUT ))
 	{
@@ -1552,4 +1561,5 @@ void GL_OnContextCreated( void )
 	// dxt unpacked to 16-bit looks ugly
 	pglHint( GL_AVOID16BITS_HINT_GL4ES, 1 );
 #endif // XASH_GL4ES
+
 }

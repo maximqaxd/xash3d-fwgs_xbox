@@ -896,6 +896,14 @@ typedef float GLmatrix[16];
 #define WGL_SAMPLE_BUFFERS_ARB		0x2041
 #define WGL_SAMPLES_ARB			0x2042
 
+// GL_EXT_paletted_texture
+#ifndef GL_COLOR_INDEX
+#define GL_COLOR_INDEX				0x1900
+#endif
+#ifndef GL_COLOR_INDEX8_EXT
+#define GL_COLOR_INDEX8_EXT			0x80E5
+#endif
+
 #ifdef __GNUC__
 	#pragma GCC diagnostic push
 	#pragma GCC diagnostic ignored "-Wunused-variable"
@@ -1262,6 +1270,7 @@ APIENTRY_LINKAGE void GL_FUNCTION( glActiveTexture) (GLenum);
 APIENTRY_LINKAGE void GL_FUNCTION( glClientActiveTexture) (GLenum);
 APIENTRY_LINKAGE void GL_FUNCTION( glCompressedTexImage3DARB )(GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLsizei imageSize, const void *data);
 APIENTRY_LINKAGE void GL_FUNCTION( glCompressedTexImage2DARB )(GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLint border,  GLsizei imageSize, const void *data);
+APIENTRY_LINKAGE void GL_FUNCTION( glColorTableEXT )(GLenum target, GLenum internalformat, GLsizei width, GLenum format, GLenum type, const void *data);
 APIENTRY_LINKAGE void GL_FUNCTION( glCompressedTexImage1DARB )(GLenum target, GLint level, GLenum internalformat, GLsizei width, GLint border, GLsizei imageSize, const void *data);
 APIENTRY_LINKAGE void GL_FUNCTION( glCompressedTexSubImage3DARB )(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLsizei imageSize, const void *data);
 APIENTRY_LINKAGE void GL_FUNCTION( glCompressedTexSubImage2DARB )(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLsizei imageSize, const void *data);
@@ -1742,6 +1751,7 @@ APIENTRY_LINKAGE void GL_FUNCTION( glTexImage2DMultisample )(GLenum target, GLsi
 #define pglClientActiveTexture glClientActiveTexture
 #define pglCompressedTexImage3DARB glCompressedTexImage3DARB
 #define pglCompressedTexImage2DARB glCompressedTexImage2DARB
+#define pglColorTableEXT glColorTableEXT
 #define pglCompressedTexImage1DARB glCompressedTexImage1DARB
 #define pglCompressedTexSubImage3DARB glCompressedTexSubImage3DARB
 #define pglCompressedTexSubImage2DARB glCompressedTexSubImage2DARB

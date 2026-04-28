@@ -184,8 +184,9 @@ void GL_ApplyTextureParams( gl_texture_t *tex )
 
 		if( tex->target == GL_TEXTURE_3D || tex->target == GL_TEXTURE_CUBE_MAP_ARB )
 			pglTexParameteri( tex->target, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_BORDER );
-
+#if !XASH_XBOX
 		pglTexParameterfv( tex->target, GL_TEXTURE_BORDER_COLOR, border );
+#endif
 	}
 	else if( FBitSet( tex->flags, TF_CLAMP ))
 	{
@@ -356,6 +357,11 @@ static size_t GL_CalcTextureSize( GLenum format, int width, int height, int dept
 	case GL_LUMINANCE8:
 		size = (width * height * depth);
 		break;
+#if XASH_XBOX
+	case GL_COLOR_INDEX8_EXT:
+		size = (width * height * depth);
+		break;
+#endif
 	case GL_LUMINANCE_ALPHA:
 	case GL_LUMINANCE8_ALPHA8:
 		size = width * height * depth * 2;
@@ -662,6 +668,14 @@ static void GL_SetTextureFormat( gl_texture_t *tex, pixformat_t format, int chan
 		// NOTE: not all the types will be compressed
 		int	bits = gpGlobals->desktopBitsPixel;
 
+#if XASH_XBOX
+		if( format == PF_INDEXED_24 || format == PF_INDEXED_32 )
+			tex->format = GL_COLOR_INDEX8_EXT;
+		else if( haveAlpha )
+			tex->format = GL_RGBA8;
+		else
+			tex->format = GL_RGB8;
+#else
 		switch( GL_CalcTextureSamples( channelMask ))
 		{
 		case 1:
@@ -688,6 +702,7 @@ static void GL_SetTextureFormat( gl_texture_t *tex, pixformat_t format, int chan
 			}
 			break;
 		}
+#endif
 	}
 }
 
@@ -976,6 +991,14 @@ static void GL_TextureImageRAW( gl_texture_t *tex, GLint side, GLint level, GLin
 		break;
 	}
 
+#if XASH_XBOX
+	if( type == PF_RGB_24 )
+		inFormat = GL_RGB;
+
+	if( type == PF_INDEXED_24 || type == PF_INDEXED_32 )
+		inFormat = GL_COLOR_INDEX;
+#endif
+
 	if( FBitSet( tex->flags, TF_ARB_16BIT ))
 		dataType = GL_HALF_FLOAT_ARB;
 	else if( FBitSet( tex->flags, TF_ARB_FLOAT ))
@@ -983,6 +1006,13 @@ static void GL_TextureImageRAW( gl_texture_t *tex, GLint side, GLint level, GLin
 	else
 		dataType = GL_UNSIGNED_BYTE;
 
+#if XASH_XBOX
+ 	if( tex->target == GL_TEXTURE_CUBE_MAP_ARB )
+	{
+		if( subImage ) pglTexSubImage2D( cubeTarget + side, level, 0, 0, width, height, inFormat, dataType, data );
+		else pglTexImage2D( cubeTarget + side, level, tex->format, width, height, 0, inFormat, dataType, data );
+	}
+#else
 	if( tex->target == GL_TEXTURE_1D )
 	{
 		if( subImage ) pglTexSubImage1D( tex->target, level, 0, width, inFormat, dataType, data );
@@ -998,9 +1028,10 @@ static void GL_TextureImageRAW( gl_texture_t *tex, GLint side, GLint level, GLin
 		if( subImage ) pglTexSubImage3D( tex->target, level, 0, 0, 0, width, height, depth, inFormat, dataType, data );
 		else pglTexImage3D( tex->target, level, tex->format, width, height, depth, 0, inFormat, dataType, data );
 	}
+#endif
 	else if( tex->target == GL_TEXTURE_2D_MULTISAMPLE )
 	{
-#if !defined( XASH_GL_STATIC ) || (!defined( XASH_GLES ) && !defined( XASH_GL4ES ))
+#if !defined( XASH_GL_STATIC ) || (!defined( XASH_GLES ) && !defined( XASH_GL4ES ) && !defined( XASH_XBOX ))
 		GLsizei	samplesCount = (GLsizei)gEngfuncs.pfnGetCvarFloat( "gl_msaa_samples" );
 		switch( samplesCount )
 		{
@@ -1031,7 +1062,7 @@ static void GL_TextureImageCompressed( gl_texture_t *tex, GLint side, GLint leve
 
 	Assert( tex != NULL );
 
-#if !XASH_GLES
+#if !XASH_GLES && !XASH_XBOX
 	if( tex->target == GL_TEXTURE_1D )
 	{
 		if( subImage ) pglCompressedTexSubImage1DARB( tex->target, level, 0, width, tex->format, size, data );
@@ -1143,6 +1174,12 @@ static qboolean GL_UploadTexture( gl_texture_t *tex, rgbdata_t *pic )
 	glState.currentTexturesIndex[glState.activeTMU] = tex - gl_textures;
 	pglBindTexture( tex->target, tex->texnum );
 
+#if XASH_XBOX
+	// Upload per-texture palette for indexed textures
+	if( pic->palette && ( pic->type == PF_INDEXED_24 || pic->type == PF_INDEXED_32 ))
+		pglColorTableEXT( GL_TEXTURE_2D, GL_RGBA, 256, GL_RGBA, GL_UNSIGNED_BYTE, pic->palette );
+#endif
+
 	for( i = 0; i < numSides; i++ )
 	{
 		// track the buffer bounds
@@ -1188,6 +1225,27 @@ static qboolean GL_UploadTexture( gl_texture_t *tex, rgbdata_t *pic )
 		{
 			int mipCount = GL_CalcMipmapCount( tex, ( buf != NULL ));
 
+#if XASH_XBOX
+			if( pic->type == PF_INDEXED_24 || pic->type == PF_INDEXED_32 )
+			{
+				// Resample non-power-of-two indexed data to tex dimensions
+				// (Image_Resample8Nolerp handles 1bpp correctly)
+				if(( pic->width != tex->width ) || ( pic->height != tex->height ))
+					gEngfuncs.Image_Process( &pic, tex->width, tex->height, IMAGE_RESAMPLE, 0.0f );
+
+				data = pic->buffer;
+				width = tex->width;
+				height = tex->height;
+				texsize = GL_CalcTextureSize( tex->format, width, height, tex->depth );
+				size = gEngfuncs.Image_CalcImageSize( pic->type, width, height, tex->depth );
+				GL_TextureImageRAW( tex, i, 0, width, height, tex->depth, pic->type, data );
+				tex->size += texsize;
+				tex->numMips++;
+				GL_CheckTexImageError( tex );
+			}
+			else
+			{
+#endif
 			// NOTE: only single uncompressed textures can be resamples, no mips, no layers, no sides
 			if(( tex->depth == 1 ) && (( pic->width != tex->width ) || ( pic->height != tex->height )))
 				data = GL_ResampleTexture( buf, pic->width, pic->height, tex->width, tex->height, normalMap );
@@ -1211,6 +1269,9 @@ static qboolean GL_UploadTexture( gl_texture_t *tex, rgbdata_t *pic )
 
 				GL_CheckTexImageError( tex );
 			}
+#if XASH_XBOX
+			}
+#endif
 
 			// move to next side
 			if( numSides > 1 && ( buf != NULL ))
@@ -1271,7 +1332,11 @@ static void GL_ProcessImage( gl_texture_t *tex, rgbdata_t *pic )
 			tex->original = gEngfuncs.FS_CopyImage( pic ); // because current pic will be expanded to rgba
 
 		// we need to expand image into RGBA buffer
+#if XASH_XBOX
+		if( 0 ) // never force RGBA on Xbox — use GL_COLOR_INDEX8_EXT
+#else
 		if( pic->type == PF_INDEXED_24 || pic->type == PF_INDEXED_32 )
+#endif
 			img_flags |= IMAGE_FORCE_RGBA;
 
 		// processing image before uploading (force to rgba, make luma etc)
@@ -1527,6 +1592,10 @@ int GL_LoadTexture( const char *name, const byte *buf, size_t size, int flags )
 
 	if( FBitSet( flags, TF_KEEP_SOURCE ) && !FBitSet( flags, TF_EXPAND_SOURCE ))
 		SetBits( picFlags, IL_KEEP_8BIT );
+
+#if XASH_XBOX
+	SetBits( picFlags, IL_KEEP_8BIT );
+#endif
 
 	// set some image flags
 	gEngfuncs.Image_SetForceFlags( picFlags );
@@ -1991,9 +2060,15 @@ void R_InitDlightTexture( void )
 	{
 		.width = BLOCK_SIZE,
 		.height = BLOCK_SIZE,
+#if XASH_XBOX
+		.type = PF_RGB_24,
+		.flags = IMAGE_HAS_COLOR,
+		.size = BLOCK_SIZE * BLOCK_SIZE * 3
+#else
 		.type = PF_RGBA_32,
 		.flags = IMAGE_HAS_COLOR,
-		.size = r_image.width * r_image.height * 4
+		.size = BLOCK_SIZE * BLOCK_SIZE * 4
+#endif
 	};
 	qboolean update = false;
 
@@ -2061,10 +2136,11 @@ static void GL_CreateInternalTextures( void )
 	for( x = 0; x < 16; x++ )
 		((uint *)pic->buffer)[x] = 0xFF000000;
 	tr.blackTexture = GL_LoadTextureInternal( REF_BLACK_TEXTURE, pic, TF_COLORMAP );
-
+#if !XASH_XBOX
 	// cinematic dummy
 	pic = GL_FakeImage( 640, 100, 1, IMAGE_HAS_COLOR );
 	tr.cinTexture = GL_LoadTextureInternal( "*cintexture", pic, TF_NOMIPMAP|TF_CLAMP );
+#endif // XASH_XBOX
 }
 
 /*
@@ -2201,6 +2277,9 @@ void R_TextureList_f( void )
 			break;
 		case GL_RGBA32F_ARB:
 			gEngfuncs.Con_Printf( "RGBA32F" );
+			break;
+		case GL_COLOR_INDEX8_EXT:
+			gEngfuncs.Con_Printf( "IDX8  " );
 			break;
 		default:
 			gEngfuncs.Con_Printf( " ^1ERROR^7 " );
@@ -2546,5 +2625,7 @@ void R_ShowTextures( void )
 	}
 
 	gEngfuncs.CL_DrawCenterPrint ();
+#if !XASH_XBOX
 	pglFinish();
+#endif
 }
