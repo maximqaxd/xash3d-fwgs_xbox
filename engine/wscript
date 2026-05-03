@@ -103,9 +103,9 @@ def configure(conf):
 	elif conf.env.DEST_OS == 'xbox':
 		conf.define('XASH_NO_LIBDL', 1)
 		conf.define('XASH_CRASHHANDLER', 0)
-		conf.define('XASH_NO_NETWORK', 1)
 		# No bundled libogg/opusfile/vorbis on this target
 		conf.define('XASH_NO_OGG_CONTAINER', 1)
+		conf.options.CUSTOM_SWAP = False
 
 	if conf.options.ENGINE_FUZZ:
 		conf.env.append_unique('CFLAGS', '-fsanitize=fuzzer-no-link')
@@ -210,6 +210,8 @@ def build(bld):
 		source += bld.path.ant_glob('platform/win32/lib_win.c')
 		# pbgl include path for vid_xbox.c
 		includes += ['/opt/toolchains/xbox/pbgl/include']
+		includes += ['/opt/toolchains/xbox/nxdk/lib/net/lwip/src/include',
+			'/opt/toolchains/xbox/nxdk/lib/net/nforceif/include']
 
 	# Android _is_ Linux based, after all
 	if bld.env.DEST_OS == 'android':
@@ -225,7 +227,11 @@ def build(bld):
 	
 	# include sources for optional features
 	if bld.get_define('XASH_CUSTOM_SWAP'):
-		source += ['platform/misc/kmalloc.c', 'platform/misc/sbrk.c']
+		source += ['platform/misc/kmalloc.c']
+		if bld.env.DEST_OS == 'xbox':
+			source += ['platform/xbox/xbox_sbrk.c']
+		else:
+			source += ['platform/misc/sbrk.c']
 
 	if bld.get_define('XASH_STATIC_LIBS'):
 		source += ['platform/misc/lib_static.c']
@@ -342,7 +348,7 @@ def build(bld):
 		linkflags = []
 
 		if bld.env.DEST_OS == 'xbox':
-			linkflags += ['/opt/toolchains/xbox/pbgl/libpbgl.lib', '/opt/toolchains/xbox/nxdk/lib/libpbkit.lib']
+			linkflags += ['/opt/toolchains/xbox/pbgl/libpbgl.lib', '/opt/toolchains/xbox/nxdk/lib/libpbkit.lib', '/opt/toolchains/xbox/nxdk/lib/libnxdk_net.lib']
 
 		if bld.env.DEST_OS == 'emscripten':
 			linkflags = ['-sINITIAL_MEMORY=134217728', '-sALLOW_MEMORY_GROWTH=1', '-sSTACK_SIZE=16777216']

@@ -16,6 +16,8 @@ GNU General Public License for more details.
 #include "net_ws.h"
 #if XASH_NO_NETWORK
 #include "platform/stub/net_stub.h"
+#elif XASH_XBOX
+#include "platform/xbox/net_xbox.h"
 #elif XASH_WIN32
 #include "platform/win32/net.h"
 #elif XASH_PSVITA

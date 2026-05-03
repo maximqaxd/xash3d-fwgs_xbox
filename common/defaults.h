@@ -80,7 +80,7 @@ SETUP BACKENDS DEFINITIONS
 #ifndef XASH_TIMER
 	#if XASH_SDL >= 2
 		#define XASH_TIMER TIMER_SDL
-	#elif XASH_WIN32
+	#elif XASH_WIN32 && !XASH_XBOX
 		#define XASH_TIMER TIMER_WIN32
 	#elif XASH_DOS4GW
 		#define XASH_TIMER TIMER_DOS
@@ -160,7 +160,7 @@ Default build-depended cvar and constant values
 	#define DEFAULT_FULLSCREEN   "2"
 	#define DEFAULT_M_IGNORE     "1"
 	#define DEFAULT_ALLOWCONSOLE  1
-	#define XASH_NO_NETWORK       1  
+	#define XASH_NO_IPV6_RESOLVE  1
 #elif XASH_ANDROID
 	#define DEFAULT_TOUCH_ENABLE "1"
 #elif XASH_MOBILE_PLATFORM

@@ -100,7 +100,7 @@ SUBDIRS = [
 	Subproject('3rdparty/vorbis',       lambda x: x.env.CLIENT and x.env.DEST_OS != 'xbox' and (not x.env.HAVE_SYSTEM_VORBIS or not x.env.HAVE_SYSTEM_VORBISFILE)),
 	Subproject('3rdparty/opusfile',     lambda x: x.env.CLIENT and x.env.DEST_OS != 'xbox' and not x.env.HAVE_SYSTEM_OPUSFILE),
 	Subproject('3rdparty/maintui',      lambda x: x.env.CLIENT and x.env.TUI),
-	Subproject('3rdparty/mainui',       lambda x: x.env.CLIENT and x.env.DEST_OS not in ('android', 'xbox')),
+	Subproject('3rdparty/mainui',       lambda x: x.env.CLIENT and x.env.DEST_OS not in ('android',)),
 	Subproject('3rdparty/vgui_support', lambda x: x.env.CLIENT),
 	Subproject('3rdparty/MultiEmulator',lambda x: x.env.CLIENT),
 #	Subproject('3rdparty/freevgui',     lambda x: x.env.CLIENT),
@@ -275,7 +275,9 @@ def configure(conf):
 		conf.options.SOFT             = False
 		conf.options.NULL             = False
 		conf.options.LOW_MEMORY       = 2
-		conf.env.append_unique('LINKFLAGS', ['-Wl,/STACK:1048576', '-Wl,/MAP'])
+		conf.env.append_unique('CFLAGS', ['-mno-sse2'])
+		conf.env.append_unique('CXXFLAGS', ['-mno-sse2'])
+		conf.env.append_unique('LINKFLAGS', ['-Wl,/STACK:256000', '-Wl,/MAP'])
 
 	# psvita needs -fPIC set manually and static builds are incompatible with -fPIC
 	enforce_pic = conf.env.DEST_OS not in ['psvita', 'xbox'] and not conf.env.STATIC_LINKING
@@ -297,6 +299,13 @@ def configure(conf):
 
 	cflags, linkflags = conf.get_optimization_flags()
 	cxxflags = list(cflags) # optimization flags are common between C and C++ but we need a copy
+
+	# Xbox: optimize for size instead of speed
+	if conf.env.DEST_OS == 'xbox':
+		for flaglist in (cflags, cxxflags):
+			for i, f in enumerate(flaglist):
+				if f in ('-Ofast', '-O3', '-O2'):
+					flaglist[i] = '-Os'
 
 	# on the Switch, allow undefined symbols by default, which is needed for libsolder to work
 	# we'll specifically disallow them for the engine executable

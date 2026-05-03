@@ -280,7 +280,7 @@ def get_optimization_flags(conf):
 		# might enable this for release/fast/fastnative builds in the future
 		cflags = ['-gline-tables-only' if flag.startswith('-g') else flag for flag in cflags]
 
-	if conf.env.COMPILER_CC in ['gcc', 'clang'] and conf.env.DEST_OS not in ['android']:
+	if conf.env.COMPILER_CC in ['gcc', 'clang'] and conf.env.DEST_OS not in ['android', 'xbox']:
 		# HLSDK by default compiles with these options under Linux
 		# no reason for us to not do the same
 		if conf.env.DEST_CPU == 'x86':

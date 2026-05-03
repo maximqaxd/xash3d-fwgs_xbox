@@ -1606,14 +1606,14 @@ static int NET_IPSocket( const char *net_iface, int port, int family )
 	{
 		Con_DPrintf( S_WARN "%s: port: %d setsockopt SO_BROADCAST: %s\n", __func__, port, NET_ErrorString( ));
 	}
-
+#if !XASH_XBOX // lwip doesn't support SO_REUSEADDR, not fatal
 	if( NET_IsSocketError( setsockopt( net_socket, SOL_SOCKET, SO_REUSEADDR, (const char *)&optval, sizeof( optval ))))
 	{
 		Con_DPrintf( S_WARN "%s: port: %d setsockopt SO_REUSEADDR: %s\n", __func__, port, NET_ErrorString( ));
 		closesocket( net_socket );
 		return INVALID_SOCKET;
 	}
-
+#endif
 	addr.ss_family = family;
 
 	if( family == AF_INET6 )
@@ -2001,6 +2001,18 @@ void NET_Init( void )
 	{
 		Con_DPrintf( S_ERROR "network initialization failed.\n" );
 		return;
+	}
+#elif XASH_XBOX
+	{
+		nx_net_parameters_t params = { 0 };
+		params.ipv4_mode = NX_NET_DHCP;
+		params.ipv6_mode = NX_NET_AUTO;
+		if( nxNetInit( &params ) < 0 )
+		{
+			Con_Printf( S_ERROR "nxNetInit failed.\n" );
+			return;
+		}
+		Con_Printf( "Xbox networking initialised. \n" );
 	}
 #endif
 
