@@ -1673,17 +1673,17 @@ static qboolean FS_FindLibrary( const char *dllname, qboolean directpath, fs_dll
 			else
 			{
 #if XASH_XBOX
+				if( Q_strlen( search->filename ) >= 2 && search->filename[1] == ':' )
+				{
+					Q_snprintf( dllInfo->fullPath, sizeof( dllInfo->fullPath ), "%s%s",
+						search->filename, dllInfo->shortPath );
+				}
+				else
 				{
 					size_t rlen = Q_strlen( fs_rootdir );
-					size_t slen = Q_strlen( search->filename );
 					qboolean r_sep = rlen > 0 && ( fs_rootdir[rlen-1] == '\\' || fs_rootdir[rlen-1] == '/' );
-					qboolean s_sep = slen > 0 && ( search->filename[slen-1] == '\\' || search->filename[slen-1] == '/' );
-					if( r_sep || slen == 0 )
-						Q_snprintf( dllInfo->fullPath, sizeof( dllInfo->fullPath ), "%s%s%s%s",
-							fs_rootdir, search->filename, s_sep || slen == 0 ? "" : "\\", dllInfo->shortPath );
-					else
-						Q_snprintf( dllInfo->fullPath, sizeof( dllInfo->fullPath ), "%s\\%s%s%s",
-							fs_rootdir, search->filename, s_sep || slen == 0 ? "" : "\\", dllInfo->shortPath );
+					Q_snprintf( dllInfo->fullPath, sizeof( dllInfo->fullPath ), "%s%s%s",
+						fs_rootdir, r_sep ? "" : "\\", dllInfo->shortPath );
 				}
 #else
 				Q_snprintf( dllInfo->fullPath, sizeof( dllInfo->fullPath ), "%s/%s%s", fs_rootdir, search->filename, dllInfo->shortPath );

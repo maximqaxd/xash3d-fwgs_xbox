@@ -261,63 +261,79 @@ static qboolean FS_LoadProgs( void )
 }
 
 #if XASH_XBOX
-static qboolean FS_MountXboxRodir( char *out, size_t size )
+static qboolean FS_MountXboxDrive( void )
 {
 	char targetPath[MAX_PATH];
 	char *slash;
-	bool ok;
-
-	if( size < 4 )
-		return false;
 
 	nxGetCurrentXbeNtPath( targetPath );
 
 	slash = strrchr( targetPath, '\\' );
-
 	if( !slash || slash == targetPath )
-	{
 		return false;
-	}
 
 	*( slash + 1 ) = '\0';
 
 	if( nxIsDriveMounted( 'D' ))
 		nxUnmountDrive( 'D' );
 
-	ok = nxMountDrive( 'D', targetPath );
-	if( !ok )
-	{
-		ok = nxMountDrive( 'D', "\\Device\\CdRom0\\" );
-	}
+	if( nxMountDrive( 'D', targetPath ))
+		return true;
 
-	if( !ok )
-	{
-		return false;
-	}
-
-	Q_strncpy( out, "D:\\", size );
-	return true;
+	// last resort: try CdRom
+	return nxMountDrive( 'D', "\\Device\\CdRom0\\" );
 }
 
+static qboolean isXbeOnCDROM( void )
+{
+	char targetPath[MAX_PATH];
+
+	nxGetCurrentXbeNtPath( targetPath );
+
+	return ( strncmp( targetPath, "\\Device\\CdRom", 13 ) == 0 );
+}
+
+// Called first: determines the writable root directory
 static qboolean FS_MountXboxRootdir( char *out, size_t size )
 {
 	if( size < 4 )
 		return false;
 
-	if( !nxIsDriveMounted( 'E' ))
+	// mount D: to the XBE's directory (game data lives here)
+	if( !FS_MountXboxDrive( ))
+		return false;
+
+	if( isXbeOnCDROM( ))
 	{
-		if( !nxMountDrive( 'E', "\\Device\\Harddisk0\\Partition1\\" ))
+		// running from DVD: need HDD for writable storage
+		if( !nxIsDriveMounted( 'E' ))
+			nxMountDrive( 'E', "\\Device\\Harddisk0\\Partition1\\" );
+
+		if( nxIsDriveMounted( 'E' ))
 		{
-			// Fall back to D: as both root and rodir
-			Q_strncpy( out, "D:\\", size );
+			CreateDirectoryA( "E:\\Xash3D", NULL );
+			Q_strncpy( out, "E:\\Xash3D\\", size );
 			return true;
 		}
 	}
 
+	// running from HDD: use D: for everything
+	Q_strncpy( out, "D:\\", size );
+	return true;
+}
 
-	CreateDirectoryA( "E:\\Xash3D", NULL );
+// Called second: D: is already mounted by FS_MountXboxRootdir
+static qboolean FS_MountXboxRodir( char *out, size_t size )
+{
+	if( size < 4 )
+		return false;
 
-	Q_strncpy( out, "E:\\Xash3D\\", size );
+	// Only set rodir when running from CdRom (rootdir is on E:, data on D:)
+	// When on HDD, rootdir is already D: so no separate rodir needed
+	if( !isXbeOnCDROM( ))
+		return false;
+
+	Q_strncpy( out, "D:\\", size );
 	return true;
 }
 #endif
