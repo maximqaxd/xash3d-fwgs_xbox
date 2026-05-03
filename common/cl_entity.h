@@ -59,7 +59,11 @@ typedef struct
 
 typedef struct cl_entity_s cl_entity_t;
 
+#if XASH_XBOX
+#define HISTORY_MAX		16		// Must be power of 2
+#else
 #define HISTORY_MAX		64		// Must be power of 2
+#endif
 #define HISTORY_MASK	( HISTORY_MAX - 1 )
 
 #include "entity_state.h"
@@ -98,8 +102,9 @@ struct cl_entity_s
 	struct model_s	*model;	// cl.model_precache[ curstate.modelindes ];  all visible entities have a model
 	struct efrag_s	*efrag;	// linked list of efrags
 	struct mnode_s	*topnode;	// for bmodels, first world node that splits bmodel, or NULL if not split
-
+#if !XASH_XBOX
 	float		syncbase;	// for client-side animations -- used by obsolete alias animation system, remove?
+#endif
 	int		visframe;	// last frame this entity was found in an active leaf
 	colorVec		cvFloorColor;
 };

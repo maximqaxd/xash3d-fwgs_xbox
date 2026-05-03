@@ -461,7 +461,14 @@ void VOX_LoadSound( channel_t *ch, const char *pszin )
 		Mem_Free2( &ch->words );
 	}
 
-	psz = VOX_LookupString( pszin );
+#if XASH_XBOX
+	if( pszin[0] == '#' )
+	    psz = VOX_LookupString( pszin + 1);
+	else
+	    psz = VOX_LookupString( pszin);
+#else
+	psz = VOX_LookupString( pszin);
+#endif
 
 	if( !psz )
 	{
