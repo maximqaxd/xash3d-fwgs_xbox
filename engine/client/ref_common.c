@@ -70,7 +70,11 @@ REF_HOST_CHECK( features );
 
 static qboolean CheckSkybox( const char *name, char out[SKYBOX_MAX_SIDES][MAX_STRING] )
 {
+#if XASH_XBOX
+	static const char *skybox_ext[3] = { "bmp", "tga", "dds" };
+#else
 	static const char *skybox_ext[3] = { "dds", "tga", "bmp" };
+#endif
 	static const char *skybox_delim[2] = { "", "_" }; // no space for HL style, underscore for Q1 style
 	int	i;
 

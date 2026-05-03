@@ -159,7 +159,21 @@ CL_EventIndex
 word CL_EventIndex( const char *name )
 {
 	word	i;
+#if XASH_XBOX
+	char	fixed[MAX_QPATH];
 
+	if( COM_StringEmptyOrNULL( name ))
+		return 0;
+
+	Q_strncpy( fixed, name, sizeof( fixed ));
+	COM_FixSlashes( fixed );
+
+	for( i = 1; i < MAX_EVENTS && cl.event_precache[i][0]; i++ )
+	{
+		if( !Q_stricmp( cl.event_precache[i], fixed ))
+			return i;
+	}
+#else
 	if( COM_StringEmptyOrNULL( name ))
 		return 0;
 
@@ -168,6 +182,7 @@ word CL_EventIndex( const char *name )
 		if( !Q_stricmp( cl.event_precache[i], name ))
 			return i;
 	}
+#endif
 	return 0;
 }
 

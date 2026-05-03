@@ -137,8 +137,11 @@ typedef struct snd_globals_s
 	snd_format_t format;
 	qboolean     initialized; // sound engine is active
 	int          samples; // mono samples in buffer
+#if XASH_XBOX 
+	volatile int samplepos; // in mono samples
+#else
 	int          samplepos; // in mono samples
-
+#endif
 	int          paintedtime; // total samples that have been mixed at speed
 	int          soundtime; // total samples that have been played out to hardware at dma speed
 

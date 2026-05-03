@@ -627,7 +627,34 @@ byte *GAME_EXPORT COM_LoadFileForMe( const char *filename, int *pLength )
 	Q_strncpy( name, filename, sizeof( name ));
 	COM_FixSlashes( name );
 
+#if XASH_XBOX
+	// hacky fix for malloc mismatch in dlls
+	{
+		file_t *f = FS_Open( name, "rb", false );
+		if( !f )
+			return NULL;
+
+		iLength = FS_FileLength( f );
+		if( iLength < 0 )
+		{
+			FS_Close( f );
+			return NULL;
+		}
+
+		pfile = (byte *)malloc( iLength + 1 );
+		if( !pfile )
+		{
+			FS_Close( f );
+			return NULL;
+		}
+
+		FS_Read( f, pfile, iLength );
+		pfile[iLength] = '\0';
+		FS_Close( f );
+	}
+#else
 	pfile = g_fsapi.LoadFileMalloc( name, &iLength, false );
+#endif
 	if( pLength ) *pLength = (int)iLength;
 
 	return pfile;

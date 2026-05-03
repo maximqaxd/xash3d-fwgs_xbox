@@ -1439,7 +1439,9 @@ qboolean Image_Process( rgbdata_t **pix, int width, int height, uint flags, floa
 
 		if( resampled ) // resampled or filled
 		{
+#if !XASH_XBOX
 			Con_Reportf( "Image_Resample: from[%d x %d] to [%d x %d]\n", pic->width, pic->height, w, h );
+#endif
 			pic->width = w, pic->height = h;
 			pic->size = w * h * PFDesc[pic->type].bpp;
 			Mem_Free( pic->buffer );		// free original image buffer

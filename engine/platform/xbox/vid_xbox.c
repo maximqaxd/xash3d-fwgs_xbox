@@ -20,6 +20,7 @@ GNU General Public License for more details.
 #include "vid_common.h"
 
 #include <pbgl.h>
+#include <pbkit/pbkit.h>
 #include <GL/gl.h>
 #define GL_GLEXT_PROTOTYPES
 #include <GL/glext.h>
@@ -243,6 +244,8 @@ qboolean R_Init_Video( ref_graphic_apis_t type )
 	gl_attribs[REF_GL_DOUBLEBUFFER] = 1;
 	gl_attribs[REF_GL_CONTEXT_MAJOR_VERSION] = 1;
 	gl_attribs[REF_GL_CONTEXT_MINOR_VERSION] = 2;
+
+	pb_size( 2 * 1024 * 1024 ); // 2MB for pushbuffer
 
 	int err = pbgl_init( GL_TRUE );
 	

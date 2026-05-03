@@ -3295,6 +3295,9 @@ qboolean CL_PrecacheResources( void )
 			if( pRes->nIndex >= 0 && pRes->nIndex < ARRAYSIZE( cl.event_precache ))
 			{
 				Q_strncpy( cl.event_precache[pRes->nIndex], pRes->szFileName, sizeof( cl.event_precache[0] ));
+#if XASH_XBOX
+				COM_FixSlashes( cl.event_precache[pRes->nIndex] );
+#endif
 				CL_SetEventIndex( cl.event_precache[pRes->nIndex], pRes->nIndex );
 			}
 			break;
