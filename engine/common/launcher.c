@@ -41,8 +41,8 @@ int main( int argc, char **argv )
 {
 #if XASH_XBOX
 	XVideoSetMode(640, 480, 32, REFRESH_DEFAULT);
-#endif
-#if XASH_PSVITA
+	szArgc = Xbox_GetArgv( argc, argv, &szArgv );
+#elif XASH_PSVITA
 	// inject -dev -console into args if required
 	szArgc = PSVita_GetArgv( argc, argv, &szArgv );
 #elif XASH_IOS

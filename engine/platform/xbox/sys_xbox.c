@@ -20,6 +20,8 @@ GNU General Public License for more details.
 
 #include <stdarg.h>
 #include <string.h>
+#include <hal/xbox.h>
+#include <xboxkrnl/xboxkrnl.h>
 // 16550 UART registers (COM1 base = 0x3F8)
 #define UART_BASE       0x3F8
 #define UART_THR        (UART_BASE + 0) // Transmit Holding Register
@@ -105,6 +107,44 @@ void Xbox_SerialPrint( const char *msg )
 void Platform_ShellExecute( const char *path, const char *parms )
 {
 	
+}
+
+/*
+====================
+Xbox_GetArgv
+
+Check if we were relaunched with launch data (game switch via Sys_NewInstance).
+If so, build synthetic argv with -game <gamedir> -changegame.
+Returns new argc; *pargv is set to the new argv array.
+If no launch data, returns original argc/argv unchanged.
+====================
+*/
+int Xbox_GetArgv( int argc, char **argv, char ***pargv )
+{
+	static char *xbox_argv[8];
+	static char gamedir_buf[256];
+	unsigned long launchDataType;
+	const unsigned char *launchData;
+
+	if( XGetLaunchInfo( &launchDataType, &launchData ) == 0
+		&& launchDataType == LDT_TITLE
+		&& launchData[0] != '\0' )
+	{
+		strncpy( gamedir_buf, (const char *)launchData, sizeof( gamedir_buf ) - 1 );
+		gamedir_buf[sizeof( gamedir_buf ) - 1] = '\0';
+
+		xbox_argv[0] = "xash3d";
+		xbox_argv[1] = "-game";
+		xbox_argv[2] = gamedir_buf;
+		xbox_argv[3] = "-changegame";
+		xbox_argv[4] = NULL;
+
+		*pargv = xbox_argv;
+		return 4;
+	}
+
+	*pargv = argv;
+	return argc;
 }
 
 #endif // XASH_XBOX

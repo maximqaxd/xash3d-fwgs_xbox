@@ -102,6 +102,10 @@ int PSVita_GetArgv( int in_argc, char **in_argv, char ***out_argv );
 void PSVita_InputUpdate( void );
 #endif
 
+#if XASH_XBOX
+int Xbox_GetArgv( int in_argc, char **in_argv, char ***out_argv );
+#endif
+
 #if XASH_DOS
 void DOS_Init( void );
 void DOS_Shutdown( void );

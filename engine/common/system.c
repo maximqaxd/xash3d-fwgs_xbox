@@ -19,6 +19,11 @@ GNU General Public License for more details.
 #include <stdlib.h>
 #include <errno.h>
 
+#if XASH_XBOX
+#include <hal/xbox.h>
+#include <xboxkrnl/xboxkrnl.h>
+#endif
+
 #if _MSC_VER
 #include <intrin.h>
 #endif
@@ -411,14 +416,14 @@ void Sys_Error( const char *error, ... )
 	Q_vsnprintf( text, MAX_PRINT_MSG, error, argptr );
 	va_end( argptr );
 
-#if XASH_XBOX
-	// Print to serial so we see the error before the reboot
-	DbgPrint( "*** Sys_Error: %s\n", text );
-#endif
 
 	Sys_DebugBreak();
 
 	SV_SysError( text );
+
+#if XASH_XBOX
+	debugPrint( "*** Sys_Error: %s\n", text );
+#endif
 
 	if( !Host_IsDedicated() )
 	{
@@ -545,7 +550,7 @@ Returns true if execv-like syscall is available
 */
 qboolean Sys_CanRestart( void )
 {
-#if XASH_NSWITCH || XASH_PSVITA
+#if XASH_NSWITCH || XASH_PSVITA || XASH_XBOX
 	return true;
 #elif XASH_IOS
 	return false;
@@ -640,7 +645,21 @@ qboolean Sys_NewInstance( const char *gamedir, const char *finalmsg )
 	// under normal circumstances it's always going to be the same path
 	exe = strdup( "app0:/eboot.bin" );
 	sceAppMgrLoadExec( exe, newargs, NULL );
-#elif !XASH_XBOX
+#elif XASH_XBOX
+	{
+		// Pack gamedir into launch data and relaunch ourselves
+		char launchData[3072];
+		char xbePath[520];
+
+		memset( launchData, 0, sizeof( launchData ));
+		strncpy( launchData, gamedir, sizeof( launchData ) - 1 );
+
+		memcpy( xbePath, XeImageFileName->Buffer, XeImageFileName->Length );
+		xbePath[XeImageFileName->Length] = '\0';
+
+		XLaunchXBEEx( xbePath, launchData );
+	}
+#else
 	exelen = wai_getExecutablePath( NULL, 0, NULL );
 	if( exelen >= 0 )
 	{
